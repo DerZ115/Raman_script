@@ -1,6 +1,6 @@
 ---
-title: "<Enter title here>"
-author: "<Enter name here>"
+title: "recomb. E. coli 12h 40nm AgNP"
+author: "Daniel Zimmermann"
 date: "`r format(Sys.time(), '%d %B %Y, %X')`"
 output:
   html_document:
@@ -20,25 +20,26 @@ start_time = format(Sys.time(), '%X')
 
 ## Global parameters:
 ```{r User Settings}
-work_dir <- ("D:/MASTER/Daten/")     # Working directory (name of project folder)
+work_dir <- ("C:/Users/Daniel/Dropbox/ubuntu_shared/Masterarbeit/Spectra_Data_Analyser/")     # Working directory (name of project folder)
 
-data_folder <- "Data_1"             # Name of your Data folder in your working directory
-groups <- c("A","B")                # Filenames (unique part)
+data_folder <- "Data_VR/Data_G2/"             # Name of your Data folder in your working directory
+groups <- c("A", "E","V", "Z")                # Filenames (unique part)
 ending <- ".TXT"                    # Filetype
-legend <- c("control","treated")    # Naming in publication
+legend <- c("4h (control)", "12h (control)","4h (not induced)", "12h (6h induced)")    # Naming in publication
 
 plot_original <- T                   # plot original spectra: yes = T | no = F
 Legend_pos <- "topright"             # position of legend in plots "topleft" or "topright"
 
 # reduce wavenumber range
-max_range <- "1560"                  # reduce maximum wavenumber to...
-min_range <- "900"                   # reduce minimum wavenumber to...
+max_range <- "1600"                  # reduce maximum wavenumber to...
+min_range <- "300"                   # reduce minimum wavenumber to...
 
 remove_area <- F                     # remove Area: yes = T | no = F
 area <- c("1250", "1450")            # exclude values from-to wavenumber
 
 # plot size for output
 knitr::opts_chunk$set(fig.width=12, fig.height=6)
+
 ```
 
 ### Load required packages
@@ -50,7 +51,7 @@ knitr::opts_chunk$set(fig.width=12, fig.height=6)
 
 Packages <- c("dplyr","IDPmisc", "prospectr","dendextend","baseline",
               "pls","plotrix","knitr","ggplot2","gridExtra","ggpubr",
-              "ChemoSpec", "matrixStats")
+              "ChemoSpec", "matrixStats", "stringr")
 
 for (p in 1:length(Packages)) {
   test_package <- require(Packages[p], character.only = TRUE)
@@ -116,7 +117,7 @@ Import.data <- function(work_dir, data_folder, groups, ending) {
     #print(groups_v)
     for (i in 1:length(groups)){
       Pos <- c(grep(pattern = as.character(groups[i]), 
-                    x = str.replace(Files, ending, ""))) # check for parts of filenames
+                    x = str_replace(Files, ending, ""))) # check for parts of filenames
       #print(" ")
       #print(Pos)
       groups_v[Pos] <- groups[i] # fill in vector
@@ -940,10 +941,10 @@ YOUR TEXT HERE ...
 # adjust parameters here:
 bc_fil_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
                       method = "fillPeaks",  
-                      lambda=5,        # 2nd derivative penalty for primary smoothing
-                      hwi=3,           # Half width of local windows
-                      it=5,            # Number of iterations in suppression loop
-                      int=200)         # Number of buckets to divide spectra into
+                      lambda=1,        # 2nd derivative penalty for primary smoothing
+                      hwi=10,           # Half width of local windows
+                      it=6,            # Number of iterations in suppression loop
+                      int=400)         # Number of buckets to divide spectra into
 ```
 
 ```{r Fill_1, echo=FALSE, message=FALSE, warning=FALSE}
@@ -2268,17 +2269,16 @@ YOUR TEXT HERE ...
 # Simultaneous Peak Detection and Baseline Correction - REDUCED WAVENUMBER SPECTRA
 options(warn=-1) # ...this method delivers warnings with some data 
 
-# adjust parameters here:
+# adjust parameters here (default 60 60 120 120):
 bc_pea_rw <- tryCatch({
   baseline(spectra = as.matrix(Data$Spectra_min_max), 
            method = "peakDetection", 
            left=60,         # Smallest window size for peak widths
            right=60,        # Largest window size for peak widths
            lwin=120,        # Smallest window size for minimums and medians in peak removed spectra
-           rwin=120)},        # Largest window size for minimums and medians in peak removed spectra
+           rwin=120)},      # Largest window size for minimums and medians in peak removed spectra
   error = function(e){
-    print("Simultaneous Peak Detection and Baseline Correction failed:")
-    print(e)
+    print("Simultaneous Peak Detection and Baseline Correction failed.")
     return(NA)
   })
 ```
@@ -2431,10 +2431,8 @@ if (!(is.na(bc_pea_rw))){
          bty = "n")
   
   par(mfrow = c(1,1))
-}
-
-options(warn=0)
-
+  options(warn=0)
+} 
 ```
 
 ### Simultaneous Peak Detection and Baseline Correction with reduced wavenumber range and excluded area
@@ -2447,24 +2445,18 @@ options(warn=-1) # ...this method delivers warnings with some data
 if (remove_area == T) {
   
   # adjust parameters here:
-  bc_pea_area <- tryCatch({
-    baseline(spectra = as.matrix(Data$Spectra_area), 
-             method = "peakDetection", 
-             left=60,    # Smallest window size for peak widths
-             right=60,   # Largest window size for peak widths
-             lwin=120,   # Smallest window size for minimums and medians in peak removed spectra
-             rwin=120)}, # Largest window size for minimums and medians in peak removed spectra
-    error = function(e){
-      print("Simultaneous Peak Detection and Baseline Correction failed:")
-      print(e)
-      return(NA)
-    })
+  bc_pea_area <- baseline(spectra = as.matrix(Data$Spectra_area), 
+                          method = "peakDetection", 
+                          left=60,    # Smallest window size for peak widths
+                          right=60,   # Largest window size for peak widths
+                          lwin=120,   # Smallest window size for minimums and medians in peak removed spectra
+                          rwin=120)     # Largest window size for minimums and medians in peak removed spectra
 }
 ```
 
 ```{r SimPeak_2, echo=FALSE, message=FALSE, warning=FALSE}
 # Simultaneous Peak Detection and Baseline Correction - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA MEAN AND MEDIAN
-if ((remove_area == T) && (!(is.na(bc_pea_area)))) {  
+if (remove_area == T) {  
   # extract data from baseline object
   Data$Spectra_pea_orig_area <- as.data.frame(getSpectra(bc_pea_area))
   colnames(bc_pea_area@baseline) <- colnames(bc_pea_area@spectra)
@@ -2613,9 +2605,7 @@ if ((remove_area == T) && (!(is.na(bc_pea_area)))) {
   
   par(mfrow = c(1,1))
 }
-
 options(warn=0)
-
 ```
 
 ### Robust Baseline Estimation with reduced wavenumber range
@@ -3307,7 +3297,7 @@ y_PC <- 2                           # PC on y-axis of score plots
 select_outlier <- T                 # select outlier during PCA: yes = T |no = F
 
 # fill the list with the number of the selected outliers:
-outl_min_max <- list(c(22,30), # 1:"SNV"
+outl_min_max <- list(c(), # 1:"SNV"
                      c(), # 2:"Detrend"
                      c(), # 3:"Asymmetric Least Squares"
                      c(), # 4:"FillPeaks"
@@ -3318,7 +3308,7 @@ outl_min_max <- list(c(22,30), # 1:"SNV"
                      c(), # 9:"Robust Baseline Estimation"
                      c()) # 10:"Rolling ball"
 
-outl_area <- list(c(22,30), # 1:"SNV"
+outl_area <- list(c(), # 1:"SNV"
                   c(), # 2:"Detrend"
                   c(), # 3:"Asymmetric Least Squares"
                   c(), # 4:"FillPeaks"
@@ -3347,14 +3337,16 @@ Sample <- c(1:length(Data$Wavenumber_min_max))
 for (Stats in 1:length(Type)) {
   PCA <- tryCatch({
     prcomp(Data[[Type[Stats]]][!is.na(Data$Groups),Sample],
-           retx = retx,
-           center = center,
-           rank. = rank,
-           tol = tol,
-           scale. = scale)},
+                retx = retx,
+                center = center,
+                rank. = rank,
+                tol = tol,
+                scale. = scale)
+    },
     error = function(e){
       return(NA)
-    })
+    }
+  )
   
   if (!(is.na(PCA))){
     # remove "NAs" for correct colours in the plot
@@ -3478,19 +3470,265 @@ YOUR TEXT HERE ...
 
 if (select_outlier == T) {
   for (Stats in 1:length(Type)) {
-    PCA <- tryCatch({
-      prcomp(na.omit(Data[[paste(Type[Stats],"_outl", sep="")]][!is.na(Data$Groups),Sample]),
-             retx = retx,
-             center = center,
-             rank. = rank,
-             tol = tol,
-             scale. = scale)},
-      error = function(e){
-        return(NA)
-      })
+    PCA <- prcomp(na.omit(Data[[paste(Type[Stats],"_outl", sep="")]][!is.na(Data$Groups),Sample]),
+                  retx = retx,
+                  center = center,
+                  rank. = rank,
+                  tol = tol,
+                  scale. = scale)
     
     # remove "NAs" for correct colours in the plot
-    if (!(is.na(PCA))){
+    PCA$Groups <- Data$Groups[!is.na(Data$Groups)]
+    
+    print(summary(PCA))
+    
+    Data[[paste("Var_", Type[Stats],"_outl", sep="")]] <- PCA$sdev^2/sum(PCA$sdev^2)
+    
+    plot(x = 1:PC, 
+         y = cumsum(Data[[paste("Var_", Type[Stats],"_outl", sep="")]][1:PC]*100),
+         type = "b", 
+         main = paste("Method: ",Names[Stats], " (Outl)", sep=""),
+         xlab = "Number of Principal Components",
+         ylab = "Explained Variance [%]",
+         col = "dimgrey", 
+         pch = 21, 
+         bg = "darkgrey",
+         font = 2, 
+         font.lab = 2,
+         lab = c(10,20,20),
+         xaxt = "n")
+  
+    axis(1,xaxp=c(1,PC,PC-1))
+    
+    grid(lwd = 0.8)
+    
+    pairs(PCA$x[,1:PCs],
+          #col = Data$Groups,
+          col = Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]][!is.na(Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]])],
+          main = paste("Method: ",Names[Stats], " (Outl)", sep=""),
+          pch = 19)
+    
+    par(xpd = T) 
+    
+    legend("bottomright", 
+           legend = legend, 
+           pch = 19, 
+           col = unique(Data$Groups), 
+           inset = 0.05,
+           cex = 0.7,
+           horiz = T, 
+           bty = "n")
+    
+    par(xpd = F)
+    
+    plot(x = PCA$x[,x_PC], 
+         y = PCA$x[,y_PC],
+         xlab = paste("Scores of","PC" ,x_PC, "[",round(Data[[paste("Var_", Type[Stats],"_outl", sep="")]][x_PC]*100,1),"%]", sep = " "),
+         ylab = paste("Scores of","PC" ,y_PC, "[",round(Data[[paste("Var_", Type[Stats],"_outl", sep="")]][y_PC]*100,1),"%]", sep = " "),
+         main = paste("Method: ",Names[Stats], " (Outl)", sep=""),
+         #col = Data$Groups[!is.na(Data$Groups)], 
+         col = Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]][!is.na(Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]])],
+         pch = 19, 
+         font.lab = 2)
+    
+    grid(lwd = 0.8)
+    
+    abline(h = 0, v = 0)
+    
+    legend("bottomleft", 
+           legend = legend, 
+           pch = 20, 
+           col = unique(Data$Groups[!is.na(Data$Groups)]), 
+           inset = 0.01,
+           bty = "n")
+    
+    if (plot_loadings == T) {
+      #plot.load(main=paste("Method: ",Names[Stats], " (Outl)", sep=""))
+      
+      DataLoadings <- data.frame(WaveNum=Data$Wavenumber_min_max)
+      for (loadingNR in (1:loadings)) {
+        #print(paste("PC",loadingNR,sep=""))
+        DataLoadings <- cbind(DataLoadings,PCA$rotation[,loadingNR])
+        colnames(DataLoadings)[(loadingNR+1)] <- paste("PC",loadingNR,sep="")
+      }
+      
+      DataLoadingsRev <- DataLoadings[dim(DataLoadings)[1]:1,]
+      
+      matplot(x = DataLoadingsRev[1],
+              y = DataLoadingsRev[-1],
+              type = "l", 
+              main=paste("Loadings: ",Names[Stats], " (Outl)", sep=""),
+              xlab = "Wavenumber [1/cm]",
+              ylab = "", 
+              #xaxt ="n",
+              xaxs = "i",
+              xlim = c(max(DataLoadings$WaveNum),min(DataLoadings$WaveNum)))
+      
+      abline(0,0, col="black", lwd=1.5)
+      legend("topleft", 
+             legend = colnames(DataLoadings)[2:(loadings+1)], 
+             pch = 20, 
+             col = c(1:loadings), 
+             inset = 0.01,
+             bty = "n")
+      grid(lwd = 0.8)
+      
+    }
+  }
+}
+```
+
+### PCA - reduced wavenumber range / excluded area
+~~~
+YOUR TEXT HERE ...
+~~~
+```{r PCA_3, echo=FALSE, message=FALSE, warning=FALSE}
+###################################################
+# PCA - reduced wavenumber/area                   # 
+###################################################
+if (remove_area == T) {
+  
+  Type = Type_a
+  Sample <- c(1:length(Data$Wavenumber_area))
+  
+  for (Stats in 1:length(Type)) {
+    PCA <- prcomp(Data[[Type[Stats]]][!is.na(Data$Groups),Sample],
+                  retx = retx,
+                  center = center,
+                  rank. = rank,
+                  tol = tol,
+                  scale. = scale)
+    
+    # remove "NAs" for correct colours in the plot
+    PCA$Groups <- Data$Groups[!is.na(Data$Groups)]
+    
+    print(summary(PCA))
+    
+    Data[[paste("Var_", Type[Stats])]] <- PCA$sdev^2/sum(PCA$sdev^2)
+    
+    plot(x = 1:PC, 
+         y = cumsum(Data[[paste("Var_", Type[Stats])]][1:PC]*100),
+         type = "b", 
+         main = paste("Method: ",Names[Stats], sep=""),
+         xlab = "Number of Principal Components",
+         ylab = "Explained Variance [%]",
+         col = "dimgrey", 
+         pch = 21, 
+         bg = "darkgrey",
+         font = 2, 
+         font.lab = 2,
+         lab = c(10,20,20),
+         xaxt = "n")
+  
+    axis(1,xaxp=c(1,PC,PC-1))
+    
+    grid(lwd = 0.8)
+    
+    pairs(PCA$x[,1:PCs],
+          col = Data$Groups,
+          main = paste("Method: ",Names[Stats], sep=""),
+          pch = 19)
+    
+    par(xpd = T) 
+    
+    legend("bottomright", 
+           legend = legend, 
+           pch = 19, 
+           col = unique(Data$Groups), 
+           inset = 0.05,
+           cex = 0.7,
+           horiz = T, 
+           bty = "n")
+    
+    par(xpd = F)
+    
+    plot(x = PCA$x[,x_PC], 
+         y = PCA$x[,y_PC],
+         xlab = paste("Scores of","PC" ,x_PC, "[",round(Data[[paste("Var_", Type[Stats])]][x_PC]*100,1),"%]", sep = " "),
+         ylab = paste("Scores of","PC" ,y_PC, "[",round(Data[[paste("Var_", Type[Stats])]][y_PC]*100,1),"%]", sep = " "),
+         main = paste("Method: ",Names[Stats], sep=""),
+         col = Data$Groups[!is.na(Data$Groups)], 
+         pch = 19, 
+         font.lab = 2)
+    
+    grid(lwd = 0.8)
+    
+    abline(h = 0, v = 0)
+    
+    legend("bottomleft", 
+           legend = legend, 
+           pch = 20, 
+           col = unique(Data$Groups[!is.na(Data$Groups)]), 
+           inset = 0.01,
+           bty = "n")
+    
+    # remove outlier
+    Data[paste(Type[Stats],"_outl",sep="")] <- Data[paste(Type[Stats])]
+    Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]] <- Data$Groups
+    
+    if(select_outlier == T){
+      #print(paste(Stats, "Select outlier: ESC to exit"))
+      #outlier = identify( x = PCA$x[,x_PC], y = PCA$x[,y_PC])
+      #print(outlier)
+      #Data[[paste(Type[Stats],"_outl",sep="")]][outlier,] = NA
+      Data[[paste(Type[Stats],"_outl",sep="")]][as.integer(outl_area[[Stats]]),] = NA
+      Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]][as.integer(outl_area[[Stats]])] = NA
+    }
+    
+    if (plot_loadings == T) {
+      
+      DataLoadings <- data.frame(WaveNum=Data$Wavenumber_area)
+      
+      for (loadingNR in (1:loadings)) {
+        #print(paste("PC",loadingNR,sep=""))
+        DataLoadings <- cbind(DataLoadings,PCA$rotation[,loadingNR])
+        colnames(DataLoadings)[(loadingNR+1)] <- paste("PC",loadingNR,sep="")
+      }
+      
+      DataLoadingsRev <- DataLoadings[dim(DataLoadings)[1]:1,]
+      
+      matplot(x = DataLoadingsRev[1],
+              y = DataLoadingsRev[-1],
+              type = "l", 
+              main = paste("Loadings: ",Names[Stats], sep=""), 
+              ylab = "",
+              xlab = "Wavenumber [1/cm]",
+              xlim = c(max(DataLoadings$WaveNum),min(DataLoadings$WaveNum)),
+              xaxs = "i")
+      abline(0,0, col="black", lwd=1.5)
+      legend("topleft", 
+             legend = colnames(DataLoadings)[2:(loadings+1)], 
+             pch = 20, 
+             col = c(1:loadings), 
+             inset = 0.01,
+             bty = "n")
+      grid(lwd = 0.8)
+      
+    }
+  }
+}
+```
+
+### PCA - reduced wavenumber range / excluded area / without outlier
+~~~
+YOUR TEXT HERE ...
+~~~
+```{r PCA_4, echo=FALSE, message=FALSE, warning=FALSE}
+###################################################
+# PCA - reduced wavenumber/area - without outlier #
+###################################################
+if (remove_area == T) {
+  
+  if (select_outlier == T) {
+    for (Stats in 1:length(Type)) {
+      PCA <- prcomp(na.omit(Data[[paste(Type[Stats],"_outl", sep="")]][!is.na(Data$Groups),Sample]),
+                    retx = retx,
+                    center = center,
+                    rank. = rank,
+                    tol = tol,
+                    scale. = scale)
+      
+      # remove "NAs" for correct colours in the plot
       PCA$Groups <- Data$Groups[!is.na(Data$Groups)]
       
       print(summary(PCA))
@@ -3510,14 +3748,14 @@ if (select_outlier == T) {
            font.lab = 2,
            lab = c(10,20,20),
            xaxt = "n")
-    
+  
       axis(1,xaxp=c(1,PC,PC-1))
       
       grid(lwd = 0.8)
       
       pairs(PCA$x[,1:PCs],
             #col = Data$Groups,
-            col = Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]][!is.na(Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]])],
+            col = Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]][!is.na(Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]])],
             main = paste("Method: ",Names[Stats], " (Outl)", sep=""),
             pch = 19)
       
@@ -3540,7 +3778,7 @@ if (select_outlier == T) {
            ylab = paste("Scores of","PC" ,y_PC, "[",round(Data[[paste("Var_", Type[Stats],"_outl", sep="")]][y_PC]*100,1),"%]", sep = " "),
            main = paste("Method: ",Names[Stats], " (Outl)", sep=""),
            #col = Data$Groups[!is.na(Data$Groups)], 
-           col = Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]][!is.na(Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]])],
+           col = Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]][!is.na(Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]])],
            pch = 19, 
            font.lab = 2)
       
@@ -3556,9 +3794,8 @@ if (select_outlier == T) {
              bty = "n")
       
       if (plot_loadings == T) {
-        #plot.load(main=paste("Method: ",Names[Stats], " (Outl)", sep=""))
         
-        DataLoadings <- data.frame(WaveNum=Data$Wavenumber_min_max)
+        DataLoadings <- data.frame(WaveNum=Data$Wavenumber_area)
         for (loadingNR in (1:loadings)) {
           #print(paste("PC",loadingNR,sep=""))
           DataLoadings <- cbind(DataLoadings,PCA$rotation[,loadingNR])
@@ -3585,270 +3822,7 @@ if (select_outlier == T) {
                inset = 0.01,
                bty = "n")
         grid(lwd = 0.8)
-      
-      }
-    }
-  }
-}
-```
-
-### PCA - reduced wavenumber range / excluded area
-~~~
-YOUR TEXT HERE ...
-~~~
-```{r PCA_3, echo=FALSE, message=FALSE, warning=FALSE}
-###################################################
-# PCA - reduced wavenumber/area                   # 
-###################################################
-if (remove_area == T) {
-  
-  Type = Type_a
-  Sample <- c(1:length(Data$Wavenumber_area))
-  
-  for (Stats in 1:length(Type)) {
-    PCA <- tryCatch({
-      prcomp(Data[[Type[Stats]]][!is.na(Data$Groups),Sample],
-             retx = retx,
-             center = center,
-             rank. = rank,
-             tol = tol,
-             scale. = scale)},
-      error = function(e){
-        return(NA)
-      })
-    
-    if (!(is.na(PCA))){
-      # remove "NAs" for correct colours in the plot
-      PCA$Groups <- Data$Groups[!is.na(Data$Groups)]
-      
-      print(summary(PCA))
-      
-      Data[[paste("Var_", Type[Stats])]] <- PCA$sdev^2/sum(PCA$sdev^2)
-      
-      plot(x = 1:PC, 
-           y = cumsum(Data[[paste("Var_", Type[Stats])]][1:PC]*100),
-           type = "b", 
-           main = paste("Method: ",Names[Stats], sep=""),
-           xlab = "Number of Principal Components",
-           ylab = "Explained Variance [%]",
-           col = "dimgrey", 
-           pch = 21, 
-           bg = "darkgrey",
-           font = 2, 
-           font.lab = 2,
-           lab = c(10,20,20),
-           xaxt = "n")
-    
-      axis(1,xaxp=c(1,PC,PC-1))
-      
-      grid(lwd = 0.8)
-      
-      pairs(PCA$x[,1:PCs],
-            col = Data$Groups,
-            main = paste("Method: ",Names[Stats], sep=""),
-            pch = 19)
-      
-      par(xpd = T) 
-      
-      legend("bottomright", 
-             legend = legend, 
-             pch = 19, 
-             col = unique(Data$Groups), 
-             inset = 0.05,
-             cex = 0.7,
-             horiz = T, 
-             bty = "n")
-      
-      par(xpd = F)
-      
-      plot(x = PCA$x[,x_PC], 
-           y = PCA$x[,y_PC],
-           xlab = paste("Scores of","PC" ,x_PC, "[",round(Data[[paste("Var_", Type[Stats])]][x_PC]*100,1),"%]", sep = " "),
-           ylab = paste("Scores of","PC" ,y_PC, "[",round(Data[[paste("Var_", Type[Stats])]][y_PC]*100,1),"%]", sep = " "),
-           main = paste("Method: ",Names[Stats], sep=""),
-           col = Data$Groups[!is.na(Data$Groups)], 
-           pch = 19, 
-           font.lab = 2)
-      
-      grid(lwd = 0.8)
-      
-      abline(h = 0, v = 0)
-      
-      legend("bottomleft", 
-             legend = legend, 
-             pch = 20, 
-             col = unique(Data$Groups[!is.na(Data$Groups)]), 
-             inset = 0.01,
-             bty = "n")
-      
-      # remove outlier
-      Data[paste(Type[Stats],"_outl",sep="")] <- Data[paste(Type[Stats])]
-      Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]] <- Data$Groups
-      
-      if(select_outlier == T){
-        #print(paste(Stats, "Select outlier: ESC to exit"))
-        #outlier = identify( x = PCA$x[,x_PC], y = PCA$x[,y_PC])
-        #print(outlier)
-        #Data[[paste(Type[Stats],"_outl",sep="")]][outlier,] = NA
-        Data[[paste(Type[Stats],"_outl",sep="")]][as.integer(outl_area[[Stats]]),] = NA
-        Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]][as.integer(outl_area[[Stats]])] = NA
-      }
-      
-      if (plot_loadings == T) {
         
-        DataLoadings <- data.frame(WaveNum=Data$Wavenumber_area)
-        
-        for (loadingNR in (1:loadings)) {
-          #print(paste("PC",loadingNR,sep=""))
-          DataLoadings <- cbind(DataLoadings,PCA$rotation[,loadingNR])
-          colnames(DataLoadings)[(loadingNR+1)] <- paste("PC",loadingNR,sep="")
-        }
-        
-        DataLoadingsRev <- DataLoadings[dim(DataLoadings)[1]:1,]
-        
-        matplot(x = DataLoadingsRev[1],
-                y = DataLoadingsRev[-1],
-                type = "l", 
-                main = paste("Loadings: ",Names[Stats], sep=""), 
-                ylab = "",
-                xlab = "Wavenumber [1/cm]",
-                xlim = c(max(DataLoadings$WaveNum),min(DataLoadings$WaveNum)),
-                xaxs = "i")
-        abline(0,0, col="black", lwd=1.5)
-        legend("topleft", 
-               legend = colnames(DataLoadings)[2:(loadings+1)], 
-               pch = 20, 
-               col = c(1:loadings), 
-               inset = 0.01,
-               bty = "n")
-        grid(lwd = 0.8)
-        
-      }
-    }
-  }
-}
-```
-
-### PCA - reduced wavenumber range / excluded area / without outlier
-~~~
-YOUR TEXT HERE ...
-~~~
-```{r PCA_4, echo=FALSE, message=FALSE, warning=FALSE}
-###################################################
-# PCA - reduced wavenumber/area - without outlier #
-###################################################
-if (remove_area == T) {
-  
-  if (select_outlier == T) {
-    for (Stats in 1:length(Type)) {
-      PCA <- tryCatch({
-        prcomp(na.omit(Data[[paste(Type[Stats],"_outl", sep="")]][!is.na(Data$Groups),Sample]),
-               retx = retx,
-               center = center,
-               rank. = rank,
-               tol = tol,
-               scale. = scale)},
-        error = function(e){
-          return(NA)
-        })
-      
-      if (!(is.na(PCA))){
-        # remove "NAs" for correct colours in the plot
-        PCA$Groups <- Data$Groups[!is.na(Data$Groups)]
-        
-        print(summary(PCA))
-        
-        Data[[paste("Var_", Type[Stats],"_outl", sep="")]] <- PCA$sdev^2/sum(PCA$sdev^2)
-        
-        plot(x = 1:PC, 
-             y = cumsum(Data[[paste("Var_", Type[Stats],"_outl", sep="")]][1:PC]*100),
-             type = "b", 
-             main = paste("Method: ",Names[Stats], " (Outl)", sep=""),
-             xlab = "Number of Principal Components",
-             ylab = "Explained Variance [%]",
-             col = "dimgrey", 
-             pch = 21, 
-             bg = "darkgrey",
-             font = 2, 
-             font.lab = 2,
-             lab = c(10,20,20),
-             xaxt = "n")
-    
-        axis(1,xaxp=c(1,PC,PC-1))
-        
-        grid(lwd = 0.8)
-        
-        pairs(PCA$x[,1:PCs],
-              #col = Data$Groups,
-              col = Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]][!is.na(Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]])],
-              main = paste("Method: ",Names[Stats], " (Outl)", sep=""),
-              pch = 19)
-        
-        par(xpd = T) 
-        
-        legend("bottomright", 
-               legend = legend, 
-               pch = 19, 
-               col = unique(Data$Groups), 
-               inset = 0.05,
-               cex = 0.7,
-               horiz = T, 
-               bty = "n")
-        
-        par(xpd = F)
-        
-        plot(x = PCA$x[,x_PC], 
-             y = PCA$x[,y_PC],
-             xlab = paste("Scores of","PC" ,x_PC, "[",round(Data[[paste("Var_", Type[Stats],"_outl", sep="")]][x_PC]*100,1),"%]", sep = " "),
-             ylab = paste("Scores of","PC" ,y_PC, "[",round(Data[[paste("Var_", Type[Stats],"_outl", sep="")]][y_PC]*100,1),"%]", sep = " "),
-             main = paste("Method: ",Names[Stats], " (Outl)", sep=""),
-             #col = Data$Groups[!is.na(Data$Groups)], 
-             col = Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]][!is.na(Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]])],
-             pch = 19, 
-             font.lab = 2)
-        
-        grid(lwd = 0.8)
-        
-        abline(h = 0, v = 0)
-        
-        legend("bottomleft", 
-               legend = legend, 
-               pch = 20, 
-               col = unique(Data$Groups[!is.na(Data$Groups)]), 
-               inset = 0.01,
-               bty = "n")
-        
-        if (plot_loadings == T) {
-          
-          DataLoadings <- data.frame(WaveNum=Data$Wavenumber_area)
-          for (loadingNR in (1:loadings)) {
-            #print(paste("PC",loadingNR,sep=""))
-            DataLoadings <- cbind(DataLoadings,PCA$rotation[,loadingNR])
-            colnames(DataLoadings)[(loadingNR+1)] <- paste("PC",loadingNR,sep="")
-          }
-          
-          DataLoadingsRev <- DataLoadings[dim(DataLoadings)[1]:1,]
-          
-          matplot(x = DataLoadingsRev[1],
-                  y = DataLoadingsRev[-1],
-                  type = "l", 
-                  main=paste("Loadings: ",Names[Stats], " (Outl)", sep=""),
-                  xlab = "Wavenumber [1/cm]",
-                  ylab = "", 
-                  #xaxt ="n",
-                  xaxs = "i",
-                  xlim = c(max(DataLoadings$WaveNum),min(DataLoadings$WaveNum)))
-          
-          abline(0,0, col="black", lwd=1.5)
-          legend("topleft", 
-                 legend = colnames(DataLoadings)[2:(loadings+1)], 
-                 pch = 20, 
-                 col = c(1:loadings), 
-                 inset = 0.01,
-                 bty = "n")
-          grid(lwd = 0.8)
-          
-        }
       }
     }
   }
@@ -3867,3 +3841,63 @@ end_time = format(Sys.time(), '%X')
 ```{r used time, echo=FALSE, message=TRUE, warning=FALSE}
 print(paste("Time used for analysis:", round(as.difftime(end_time, units = "mins")-as.difftime(start_time, units = "mins"),digits=2),"minutes"))
 ```
+```{r}
+##### LDA Test
+
+library(MASS)
+
+PCA <- prcomp(na.omit(Data[[paste(Type[2],"_outl", sep="")]][!is.na(Data$Groups),Sample]),
+              retx = retx,
+              center = center,
+              rank. = rank,
+              tol = tol,
+              scale. = scale)
+      
+# remove "NAs" for correct colours in the plot
+PCA$Groups <- Data$Groups[!is.na(Data$Groups)]
+      
+ls(PCA)
+data.lda <- as.data.frame(PCA$x)
+
+
+group <- factor(c(rep("A", 40), rep("E", 40), rep("V", 40), rep("Z", 40)))
+data.lda <- cbind(group, data.lda)
+N <- nrow(data.lda)
+
+# Create a random number vector
+rvec <- runif(N)
+
+# Select rows from the dataframe
+data.lda.train <- data.lda[rvec < 0.75,]
+data.lda.test <- data.lda[rvec >= 0.75,]
+
+# Check the number of observations
+nrow(data.lda.train)
+
+
+model <- lda(group~., data = data.lda.train, )
+model
+
+lda.data <- cbind(data.lda.train, predict(model)$x)
+boxplot(LD1 ~ group, data=lda.data)
+
+ggplot(lda.data, aes(LD1, LD2)) +
+  geom_point(aes(color=group))
+
+
+loadings.LDA <- model$scaling
+loadings.PCA <- PCA$rotation
+loadings <- loadings.PCA %*% loadings.LDA
+
+matplot(x = Data$Wavenumber_min_max,
+                y = loadings[,1],
+                type = "l", 
+                main=paste("Loadings"),
+                xlab = "Wavenumber [1/cm]",
+                ylab = "", 
+                #xaxt ="n",
+                xaxs = "i",
+                xlim = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)))
+
+```
+
