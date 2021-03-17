@@ -50,4 +50,3 @@ Detailed information can be found at https://www.rdocumentation.org/packages/sta
 For outlier selection, the R function *identify* is used.  
 Detailed information can be found at https://www.rdocumentation.org/packages/graphics/versions/3.6.2/topics/identify  
 
-Example data can be found in the folder **Data_1** in this repository.
