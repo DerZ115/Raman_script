@@ -23,9 +23,9 @@ start_time = format(Sys.time(), '%X')
 work_dir <- ("C:/Users/Daniel/Dropbox/ubuntu_shared/Masterarbeit/Spectra_Data_Analyser/")     # Working directory (name of project folder)
 
 data_folder <- "Data_VR/Data_G2/"             # Name of your Data folder in your working directory
-groups <- c("A", "E","V", "Z")                # Filenames (unique part)
+groups <- c("E", "Z")                # Filenames (unique part)
 ending <- ".TXT"                    # Filetype
-legend <- c("4h (control)", "12h (control)","4h (not induced)", "12h (6h induced)")    # Naming in publication
+legend <- c("12h (control)", "12h (6h induced)")    # Naming in publication
 
 plot_original <- T                   # plot original spectra: yes = T | no = F
 Legend_pos <- "topright"             # position of legend in plots "topleft" or "topright"
@@ -3845,44 +3845,57 @@ print(paste("Time used for analysis:", round(as.difftime(end_time, units = "mins
 ##### LDA Test
 
 library(MASS)
+library(caret)
 
-PCA <- prcomp(na.omit(Data[[paste(Type[2],"_outl", sep="")]][!is.na(Data$Groups),Sample]),
+data.temp <- Data[[Type[4]]]
+
+groups <- factor(c(rep("A", 40), rep("Z", 40)))
+
+# , rep("V", 40), rep("Z", 40)
+
+N <- nrow(data.temp)
+
+# Create a random number vector
+rvec <- runif(N)
+
+# Fraction of the dataset to be used for training 
+x <- 0.75
+
+data.train <- data.temp[rvec < x,]
+data.test <- data.temp[rvec >= x,]
+groups.train <- groups[rvec < x]
+groups.test <- groups[rvec >= x]
+
+nrow(data.train)
+
+
+PCA <- prcomp(na.omit(data.train),
               retx = retx,
               center = center,
               rank. = rank,
               tol = tol,
               scale. = scale)
       
-# remove "NAs" for correct colours in the plot
-PCA$Groups <- Data$Groups[!is.na(Data$Groups)]
+
       
 ls(PCA)
 data.lda <- as.data.frame(PCA$x)
 
 
-group <- factor(c(rep("A", 40), rep("E", 40), rep("V", 40), rep("Z", 40)))
-data.lda <- cbind(group, data.lda)
-N <- nrow(data.lda)
 
-# Create a random number vector
-rvec <- runif(N)
+data.lda <- cbind(groups.train, data.lda)
 
-# Select rows from the dataframe
-data.lda.train <- data.lda[rvec < 0.75,]
-data.lda.test <- data.lda[rvec >= 0.75,]
-
-# Check the number of observations
-nrow(data.lda.train)
+colnames(data.lda)[1] <- "group"
 
 
-model <- lda(group~., data = data.lda.train, )
+model <- lda(group~., data = data.lda, )
 model
 
-lda.data <- cbind(data.lda.train, predict(model)$x)
-boxplot(LD1 ~ group, data=lda.data)
+data.lda <- cbind(data.lda, predict(model)$x)
+boxplot(LD1 ~ group, data=data.lda)
 
-ggplot(lda.data, aes(LD1, LD2)) +
-  geom_point(aes(color=group))
+#ggplot(data.lda, aes(LD1, LD2)) +
+#  geom_point(aes(color=group))
 
 
 loadings.LDA <- model$scaling
@@ -3898,6 +3911,15 @@ matplot(x = Data$Wavenumber_min_max,
                 #xaxt ="n",
                 xaxs = "i",
                 xlim = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)))
+
+data.test.matrix <- as.matrix(data.test)
+
+data.test.scores <- data.test.matrix %*% loadings.PCA
+
+groups.predict <- predict(model, as.data.frame(data.test.scores))
+groups.predict[[2]]
+
+confusionMatrix(groups.predict[["class"]], groups.test, positive = "Z")
 
 ```
 
