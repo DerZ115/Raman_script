@@ -3278,9 +3278,9 @@ YOUR TEXT HERE ...
 ~~~
 ```{r PCA_par}
 # adjust PCA parameters here:
-rank <- 6      # optionally, a number specifying the maximal rank, i.e., maximal number of principal components to be used
+rank <- 10      # optionally, a number specifying the maximal rank, i.e., maximal number of principal components to be used
 center <- TRUE  # a logical value indicating whether the variables should be shifted to be zero centered
-scale <- TRUE   # a logical value indicating whether the variables should be scaled
+scale <- FALSE   # a logical value indicating whether the variables should be scaled
                 # to have unit variance before the analysis takes place
 tol <- NULL     # a value indicating the magnitude below which components should be omitted
 retx <- TRUE    # a logical value indicating whether the rotated variables should be returned.
@@ -3847,13 +3847,42 @@ print(paste("Time used for analysis:", round(as.difftime(end_time, units = "mins
 library(MASS)
 library(caret)
 
-data.temp <- Data[[Type[4]]]
+data.temp <- Data[[Type[4]]] # Detrend: 2, FillPeaks: 4
+factors <- apply(data.temp, 1, function(x){sqrt(sum(x^2))})
+data.temp.norm <- sweep(data.temp, 1, factors, "/")
 
-groups <- factor(c(rep("A", 40), rep("Z", 40)))
+groups <- factor(c(rep("control", 40), rep("induced", 40)))
+
+data.norm.plot <- as.data.frame(t(rbind(Data$Wavenumber_min_max, 
+                                        apply(data.temp.norm[groups == "control",], 2, mean), 
+                                        apply(data.temp.norm[groups == "induced",], 2, mean))))
+
+rownames(data.norm.plot) <- c()
+colnames(data.norm.plot) <- c("wavenumber", "control", "induced")
+
+data.norm.plot.sd <- as.data.frame(t(rbind(Data$Wavenumber_min_max, 
+                                        apply(data.temp.norm[groups == "control",], 2, sd), 
+                                        apply(data.temp.norm[groups == "induced",], 2, sd))))
+
+rownames(data.norm.plot.sd) <- c()
+colnames(data.norm.plot.sd) <- c("wavenumber", "control", "induced")
+
+data.norm.plot.low <- data.norm.plot - data.norm.plot.sd
+
+data.norm.plot.high <- data.norm.plot + data.norm.plot.sd
+
+ggplot(data=data.norm.plot, aes(x=wavenumber)) + 
+  geom_line(aes(y=control, col="control")) + 
+  geom_line(aes(y=induced, col="induced")) + 
+  geom_ribbon(aes(ymin=data.norm.plot.low$control, ymax=data.norm.plot.high$control, fill="control"), linetype=2, alpha=0.2, show.legend=F) + 
+  geom_ribbon(aes(ymin=data.norm.plot.low$induced, ymax=data.norm.plot.high$induced, fill="induced"), linetype=2, alpha=0.2, show.legend=F) +
+  coord_cartesian(expand=F) + scale_x_reverse(breaks=seq(300, 1600, 100), minor_breaks=seq(300, 1600, 50)) + ylab("intensity")
+  
+  
 
 # , rep("V", 40), rep("Z", 40)
 
-N <- nrow(data.temp)
+N <- nrow(data.temp.norm)
 
 # Create a random number vector
 rvec <- runif(N)
@@ -3861,8 +3890,8 @@ rvec <- runif(N)
 # Fraction of the dataset to be used for training 
 x <- 0.75
 
-data.train <- data.temp[rvec < x,]
-data.test <- data.temp[rvec >= x,]
+data.train <- data.temp.norm[rvec < x,]
+data.test <- data.temp.norm[rvec >= x,]
 groups.train <- groups[rvec < x]
 groups.test <- groups[rvec >= x]
 
@@ -3871,12 +3900,26 @@ nrow(data.train)
 
 PCA <- prcomp(na.omit(data.train),
               retx = retx,
-              center = center,
-              rank. = rank,
+              center = TRUE,
+              rank = 5,
               tol = tol,
-              scale. = scale)
-      
+              scale = FALSE)
 
+summary(PCA)
+
+scores <- as.data.frame(PCA$x[,1:2])
+scores$group <- groups.train
+
+str(scores)
+
+ggplot(scores, aes(x=PC1, y=PC2, col=group)) + geom_point()
+
+loadings.PCA <- PCA$rotation
+
+loadings.plot <- as.data.frame(cbind(Data$Wavenumber_min_max, loadings.PCA))
+colnames(loadings.plot)[1] <- "wavenumber"
+
+ggplot(data=loadings.plot, aes(x=wavenumber)) + geom_line(aes(y=PC1, col="PC1")) + geom_line(aes(y=PC5, col="PC5")) + coord_cartesian(expand=FALSE) + scale_x_reverse() + geom_hline(yintercept=0)
       
 ls(PCA)
 data.lda <- as.data.frame(PCA$x)
@@ -3891,26 +3934,25 @@ colnames(data.lda)[1] <- "group"
 model <- lda(group~., data = data.lda, )
 model
 
-data.lda <- cbind(data.lda, predict(model)$x)
-boxplot(LD1 ~ group, data=data.lda)
+data.lda.plot <- cbind(data.lda[1], predict(model)$x)
+boxplot(LD1 ~ group, data=data.lda.plot)
+
+ggplot(data.lda.plot, aes(x=group, y=LD1, fill=group)) + geom_violin()
 
 #ggplot(data.lda, aes(LD1, LD2)) +
 #  geom_point(aes(color=group))
 
 
 loadings.LDA <- model$scaling
-loadings.PCA <- PCA$rotation
 loadings <- loadings.PCA %*% loadings.LDA
 
-matplot(x = Data$Wavenumber_min_max,
-                y = loadings[,1],
-                type = "l", 
-                main=paste("Loadings"),
-                xlab = "Wavenumber [1/cm]",
-                ylab = "", 
-                #xaxt ="n",
-                xaxs = "i",
-                xlim = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)))
+data.loadings.plot <- as.data.frame(cbind(Data$Wavenumber_min_max, loadings))
+colnames(data.loadings.plot)[1] <- "Wavenumber"
+
+ggplot(data.loadings.plot, aes(x=Wavenumber, y=LD1)) + geom_line() +
+  coord_cartesian(expand=FALSE) + 
+  scale_x_reverse(breaks=seq(300, 1600, 100), minor_breaks=seq(300, 1600, 50)) +
+  geom_hline(yintercept = 0)
 
 data.test.matrix <- as.matrix(data.test)
 
@@ -3919,7 +3961,7 @@ data.test.scores <- data.test.matrix %*% loadings.PCA
 groups.predict <- predict(model, as.data.frame(data.test.scores))
 groups.predict[[2]]
 
-confusionMatrix(groups.predict[["class"]], groups.test, positive = "Z")
+confusionMatrix(groups.predict[["class"]], groups.test, positive = "induced")
 
 ```
 
