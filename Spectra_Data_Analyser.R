@@ -4,21 +4,21 @@ start_time = format(Sys.time(), '%X') # get starttime of analysis
 
 VERSION_NR <- 001                    # change for multiple analysis (only for documentation)
 
-work_dir <- ("D:/MASTER/Daten/")     # Working directory (name of project folder)
+work_dir <- ("C:/Users/Daniel/Desktop/Raman_script/")     # Working directory (name of project folder)
 
-data_folder <- "Data_1"              # Name of your Data folder in your working directory
-groups <- c("A","B")                 # Filenames (unique part)
+data_folder <- "Data/"              # Name of your Data folder in your working directory
+groups <- c("E","Z")                 # Filenames (unique part)
 ending <- ".TXT"                     # Filetype
-legend <- c("control","treated")     # Naming in publication
+legend <- c("control","induced")     # Naming in publication
 
 plot_original <- T                   # plot original spectra: yes = T | no = F
 Legend_pos <- "topright"             # position of legend in plots "topleft" or "topright"
 num_x <- 1                           # number of plots in one single window: 1 or 2
 
-max_range <- "1560"                  # reduce maximum wavenumber to...
-min_range <- "900"                   # reduce minimum wavenumber to...
+max_range <- "1600"                  # reduce maximum wavenumber to...
+min_range <- "300"                   # reduce minimum wavenumber to...
 
-remove_area <- T                     # remove Area: yes = T | no = F
+remove_area <- F                     # remove Area: yes = T | no = F
 area <- c("1250", "1450")            # exclude values from-to wavenumber
 
 select_outlier <- T                  # select outlier during PCA: yes = T |no = F
@@ -34,14 +34,10 @@ y_PC <- 2                            # PC on y-axis of score plots
 ### Load packages
 Packages <- c("dplyr","IDPmisc","prospectr","dendextend","baseline",
               "pls","plotrix","knitr","ggplot2","gridExtra","ggpubr",
-              "ChemoSpec", "matrixStats")
+              "ChemoSpec", "matrixStats", "stringr")
 
 for (p in 1:length(Packages)) {
-  test_package <- require(Packages[p], character.only = TRUE)
-  if(test_package == FALSE){
-    install.packages(Packages[p])
-    library(Packages_p)
-  }
+  require(Packages[p], character.only = TRUE)
 }
 
 ### Function for import
@@ -56,11 +52,13 @@ Import.data <- function(work_dir, data_folder, groups, ending) {
   location <- paste(work_dir, data_folder, sep="")
   
   Files_full <- list.files(path = location, pattern = ending)
+  Files_full <- str_replace(Files_full, ending, "")
   x <- c()
   for (group in groups) {
     x <- c(x,grep(pattern = group, x = Files_full))
   }
-  Files <- Files_full[x]
+  Files <- paste(Files_full[x], ending, sep="")
+  
   import <- function(data) {
     setwd(location)
     df <- try(read.csv(data, header = FALSE, 
@@ -84,7 +82,7 @@ Import.data <- function(work_dir, data_folder, groups, ending) {
     # create groupvector
     groups_v <- c(1:length(Files))
     for (i in 1:length(groups)){
-      Pos <- c(grep(pattern = as.character(groups[i]), x = Files)) # check for parts of filenames
+      Pos <- c(grep(pattern = as.character(groups[i]), x = str_replace(Files, ending, ""))) # check for parts of filenames
       groups_v[Pos] <- groups[i] # fill in vector
     }
   }else{

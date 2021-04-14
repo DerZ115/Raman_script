@@ -20,9 +20,9 @@ start_time = format(Sys.time(), '%X')
 
 ## Global parameters:
 ```{r User Settings}
-work_dir <- ("C:/Users/Daniel/Dropbox/ubuntu_shared/Masterarbeit/Spectra_Data_Analyser/")     # Working directory (name of project folder)
+work_dir <- ("C:/Users/Daniel/Desktop/Raman_script/")     # Working directory (name of project folder)
 
-data_folder <- "Data_VR/Data_G2/"             # Name of your Data folder in your working directory
+data_folder <- "Data/"             # Name of your Data folder in your working directory
 groups <- c("E", "Z")                # Filenames (unique part)
 ending <- ".TXT"                    # Filetype
 legend <- c("12h (control)", "12h (6h induced)")    # Naming in publication
@@ -3851,7 +3851,7 @@ data.temp <- Data[[Type[4]]] # Detrend: 2, FillPeaks: 4
 factors <- apply(data.temp, 1, function(x){sqrt(sum(x^2))})
 data.temp.norm <- sweep(data.temp, 1, factors, "/")
 
-groups <- factor(c(rep("control", 40), rep("induced", 40)))
+groups <- factor(c(rep("control", 50), rep("induced", 50)))
 
 data.norm.plot <- as.data.frame(t(rbind(Data$Wavenumber_min_max, 
                                         apply(data.temp.norm[groups == "control",], 2, mean), 
@@ -3888,7 +3888,7 @@ N <- nrow(data.temp.norm)
 rvec <- runif(N)
 
 # Fraction of the dataset to be used for training 
-x <- 0.75
+x <- 0.5
 
 data.train <- data.temp.norm[rvec < x,]
 data.test <- data.temp.norm[rvec >= x,]
@@ -3901,7 +3901,7 @@ nrow(data.train)
 PCA <- prcomp(na.omit(data.train),
               retx = retx,
               center = TRUE,
-              rank = 5,
+              rank = 10,
               tol = tol,
               scale = FALSE)
 
@@ -3919,7 +3919,7 @@ loadings.PCA <- PCA$rotation
 loadings.plot <- as.data.frame(cbind(Data$Wavenumber_min_max, loadings.PCA))
 colnames(loadings.plot)[1] <- "wavenumber"
 
-ggplot(data=loadings.plot, aes(x=wavenumber)) + geom_line(aes(y=PC1, col="PC1")) + geom_line(aes(y=PC5, col="PC5")) + coord_cartesian(expand=FALSE) + scale_x_reverse() + geom_hline(yintercept=0)
+ggplot(data=loadings.plot, aes(x=wavenumber)) + geom_line(aes(y=PC1, col="PC1")) + geom_line(aes(y=PC3, col="PC3")) + coord_cartesian(expand=FALSE) + scale_x_reverse() + geom_hline(yintercept=0)
       
 ls(PCA)
 data.lda <- as.data.frame(PCA$x)
@@ -3959,7 +3959,7 @@ data.test.matrix <- as.matrix(data.test)
 data.test.scores <- data.test.matrix %*% loadings.PCA
 
 groups.predict <- predict(model, as.data.frame(data.test.scores))
-groups.predict[[2]]
+groups.predict
 
 confusionMatrix(groups.predict[["class"]], groups.test, positive = "induced")
 
