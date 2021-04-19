@@ -21,17 +21,22 @@ min_range <- "300"                   # reduce minimum wavenumber to...
 remove_area <- F                     # remove Area: yes = T | no = F
 area <- c("1250", "1450")            # exclude values from-to wavenumber
 
+vector_normalize <- T                # Normalize each spectrum to a vector of length 1
 select_outlier <- T                  # select outlier during PCA: yes = T |no = F
 PC <- 8                              # Number of components in variance plots
 PCs <- 4                             # Number of PCs in overview plots
-PC_PCA <- 6                          # numper of PCs calculated in PCA
+PC_PCA <- 10                         # number of PCs calculated in PCA
 
 plot_loadings <- T                   # show loading plots
 loadings <- 3                        # number of loadings plotted simultaneously
 x_PC <- 1                            # PC on x-axis of score plots
 y_PC <- 2                            # PC on y-axis of score plots
 
-perform_LDA <- T
+perform_LDA <- F                     # perform linear discriminant analysis
+repetitions <- 10                    # Number of repetitions of the cross-validation
+segments.out <- 3                    # Number of segments in the outer loop
+segments.in <- 4                     # Number of segments in the inner loop
+max.PCs <- 20                        # Max number of PCs to use for LDA
 
 ### Choose Pretreatments
 
@@ -49,7 +54,7 @@ perform_LDA <- T
 # 10. Rolling Ball
 
 # Enter the numbers of the treatments that should be performed here:
-pretreatments <- c(1,  2, 4)
+pretreatments <- c(2, 4)
 
 ### Load packages
 Packages <- c("dplyr","IDPmisc","prospectr","dendextend","baseline",
@@ -3065,16 +3070,24 @@ par(mfrow = c(1,1))
 Type = Type_rw
 Sample <- c(1:length(Data$Wavenumber_min_max))
 
+PCA.Results <- list()
+
 for (Stats in pretreatments) {
   print("---------")
   print(Names[Stats])
   
-  # Normalization
   pca.data <- Data[[Type[Stats]]][!is.na(Data$Groups),Sample]
-  norm.factors <- apply(pca.data, 1, function(x){sqrt(sum(x^2))})
-  pca.data.norm <- sweep(pca.data, 1, norm.factors, "/")
   
-  PCA <- prcomp(pca.data.norm,
+  if (vector_normalize == T) {
+    
+    # Normalization
+    norm.factors <- apply(pca.data, 1, function(x){sqrt(sum(x^2))})
+    pca.data <- sweep(pca.data, 1, norm.factors, "/")
+    
+  }
+
+  
+  PCA <- prcomp(pca.data,
                 center = TRUE,
                 rank. = PC_PCA, 
                 scale. = FALSE )
@@ -3193,12 +3206,17 @@ if (select_outlier == T) {
   for (Stats in pretreatments) {
     print(Names[Stats])
     
-    # Normalization
     pca.data <- na.omit(Data[[paste(Type[Stats],"_outl", sep="")]][!is.na(Data$Groups),Sample])
-    norm.factors <- apply(pca.data, 1, function(x){sqrt(sum(x^2))})
-    pca.data.norm <- sweep(pca.data, 1, norm.factors, "/")
     
-    PCA <- prcomp(pca.data.norm,
+    if (vector_normalize == T) {
+      
+      # Normalization
+      norm.factors <- apply(pca.data, 1, function(x){sqrt(sum(x^2))})
+      pca.data <- sweep(pca.data, 1, norm.factors, "/")
+      
+    }
+    
+    PCA <- prcomp(pca.data,
                   center = TRUE,
                   rank. = PC_PCA, 
                   scale. = FALSE )
@@ -3207,6 +3225,7 @@ if (select_outlier == T) {
     PCA$Groups <- Data$Groups[!is.na(Data$Groups)]
     #print(Data$Groups)
     #print(Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]][!is.na(Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]])])
+    
     print(summary(PCA))
     
     Data[[paste("Var_", Type[Stats],"_outl", sep="")]] <- PCA$sdev^2/sum(PCA$sdev^2)
@@ -3313,12 +3332,17 @@ if (remove_area == T) {
   for (Stats in pretreatments) {
     print(Names[Stats])
     
-    # Normalization
     pca.data <- Data[[Type[Stats]]][!is.na(Data$Groups),Sample]
-    norm.factors <- apply(pca.data, 1, function(x){sqrt(sum(x^2))})
-    pca.data.norm <- sweep(pca.data, 1, norm.factors, "/")
     
-    PCA <- prcomp(pca.data.norm,
+    if (vector_normalize == T) {
+      
+      # Normalization
+      norm.factors <- apply(pca.data, 1, function(x){sqrt(sum(x^2))})
+      pca.data <- sweep(pca.data, 1, norm.factors, "/")
+      
+    }
+    
+    PCA <- prcomp(pca.data,
                   center = TRUE,
                   rank. = PC_PCA, 
                   scale. = FALSE )
@@ -3440,12 +3464,17 @@ if (remove_area == T) {
     for (Stats in pretreatments) {
       print(Names[Stats])
       
-      # Normalization
       pca.data <- na.omit(Data[[paste(Type[Stats],"_outl", sep="")]][!is.na(Data$Groups),Sample])
-      norm.factors <- apply(pca.data, 1, function(x){sqrt(sum(x^2))})
-      pca.data.norm <- sweep(pca.data, 1, norm.factors, "/")
       
-      PCA <- prcomp(pca.data.norm,
+      if (vector_normalize == T) {
+       
+        # Normalization
+        norm.factors <- apply(pca.data, 1, function(x){sqrt(sum(x^2))})
+        pca.data <- sweep(pca.data, 1, norm.factors, "/")
+         
+      }
+      
+      PCA <- prcomp(pca.data,
                     center = TRUE,
                     rank. = PC_PCA, 
                     scale. = FALSE )
@@ -3454,6 +3483,7 @@ if (remove_area == T) {
       PCA$Groups <- Data$Groups[!is.na(Data$Groups)]
       #print(Data$Groups)
       #print(Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]][!is.na(Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]])])
+      
       print(summary(PCA))
       
       Data[[paste("Var_", Type[Stats],"_outl", sep="")]] <- PCA$sdev^2/sum(PCA$sdev^2)
@@ -3549,6 +3579,109 @@ if (remove_area == T) {
     }
   }
 }
+
+
+if (perform_LDA == T) {
+  
+  Type = Type_rw
+  
+  for (Stats in pretreatments) {
+    
+    # extract data
+    data.lda <- Data[[Type[Stats]]][!is.na(Data$Groups),Sample]
+    colnames(data.lda) <- Data$Wavenumber_min_max
+    groups.lda <- Data$Groups
+    
+    if (vector_normalize == T) {
+      # normalization
+      norm.factors <- apply(data.lda, 1, function(x){sqrt(sum(x^2))})
+      data.lda <- sweep(data.lda, 1, norm.factors, "/")
+      
+    }
+    
+    i <- 0
+    j <- 0
+    
+    CV.results <- array(NA, c(max.PCs, 3, segments.out*repetitions))
+    opt.PCs <- rep(NA, repetitions*segments.out)
+    PCA.scores <- array(NA, c(nrow(data.lda), max.PCs, segments.out*repetitions))
+    PCA.loadings <- array(NA, c(ncol(data.lda), max.PCs, segments.out*repetitions))
+    
+    for (r in c(1:repetitions)) {
+      tfolds <- createFolds(groups.lda, k=segments.out, list=T) # split data into segments
+      
+      for (t in c(1:segments.out)) {
+      
+        i <- i + 1
+        test.set <- sort(unlist(tfolds[t], use.names=F))
+        calib.set <- sort(unlist(tfolds[-t], use.names=F))
+        
+        kfolds <- createFolds(groups.lda[calib.set], k=segments.in, list=T) # split calibration data into new segments
+        CV.err <- matrix(NA, nrow=segments.in, ncol=max.PCs) # prepare matrix for misclassification errors
+        
+        for (k in c(1:segments.in)) {
+          
+          valid.set <- unlist(kfolds[k], use.names=F)
+          train.set <- unlist(kfolds[-k], use.names=F)
+          
+          # PCA of training set
+          PCA <- prcomp(data.lda[calib.set,][train.set,], center=T, scale=F, rank=max.PCs)
+          scores.train <- PCA$x
+          scores.valid <- predict(PCA, data.lda[calib.set,][valid.set,])
+          
+          for (p in c(1:max.PCs)) {
+            
+            train.df <- data.frame(scores.train[, 1:p])
+            colnames(train.df) <- c(1:p)
+            valid.df <- data.frame(scores.valid[, 1:p])
+            colnames(valid.df) <- c(1:p)
+            
+            #LDA of training set
+            model.LDA <- lda(train.df, grouping=groups.lda[calib.set][train.set], CV=F)
+            valid.predict <- predict(model.LDA, valid.df)
+            
+            valid.groups <- as.matrix(table(valid.predict$class, groups.lda[calib.set][valid.set]))
+            
+            # Calculate misclassification rate
+            delta <- row(valid.groups) - col(valid.groups)
+            CV.err[k,p] <- sum(valid.groups[delta < 0 | delta > 0]) / sum(valid.groups)
+            
+          } # PCs loop
+          
+        } # inner CV loop
+          
+        CV.results[,1,i] <- c(1:max.PCs)
+        CV.results[,2,i] <- apply(CV.err, 2, mean)
+        CV.results[,3,i] <- apply(CV.err, 2, sd)
+        
+        CV.res.min <- CV.results[CV.results[,2,i] == min(CV.results[,2,i]),,i]
+        if (is.vector(CV.res.min)) {CV.res.min <- t(as.matrix(CV.res.min))}
+        
+        parsimony <- 1
+        threshold <- CV.res.min[1,2] + parsimony * CV.res.min[1,3]/sqrt(segments.in)
+        
+        CV.res.opt <- CV.results[(CV.results[,2,i] <= threshold),,i]
+        if (is.vector(CV.res.opt)) {CV.res.opt <- t(as.matrix(CV.res.opt))}
+        opt.PCs[i] <- CV.res.opt[1,1]
+        
+        PCA <- prcomp(data.lda[calib.set,], center=T, scale=F, rank=max.PCs)
+        scores.calib <- PCA$x
+        PCA.scores[,,i][calib.set,] <- PCA$x
+        PCA.loadings[,,i] <- PCA$rotation
+        
+        scores.calib.df <- data.frame(groups.lda[calib.set], PCA$x)
+        scores.test <- predict(PCA, data.lda[test.set,])
+        PCA.scores[,,i][test.set,] <- scores.test
+        model.lda <- lda(data.frame(scores.calib[,1:opt.PCs[i]]), grouping=groups.lda[calib.set], CV=F)
+        
+      } # outer CV loop
+      
+    } # repetitions loop
+    
+  }
+  
+}
+
 
 end_time = format(Sys.time(), '%X') # get endtime of analysis
 # print time difference between starttime and endtime
