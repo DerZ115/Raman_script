@@ -37,6 +37,7 @@ repetitions <- 10                    # Number of repetitions of the cross-valida
 segments.out <- 3                    # Number of segments in the outer loop
 segments.in <- 4                     # Number of segments in the inner loop
 max.PCs <- 20                        # Max number of PCs to use for LDA
+pos.class <- "Z"
 
 ### Choose Pretreatments
 
@@ -475,6 +476,8 @@ if (2 %in% pretreatments) {
          col = unique(Data$Groups), 
          inset = 0.05, 
          bty = "n")
+  
+  rm(Spectra_det_mean_rw, Spectra_det_median_rw)
   
   ### Detrend - REDUCED WAVENUMBER/EXCLUDED AREA
   if (remove_area == T) {
@@ -1010,6 +1013,11 @@ if (4 %in% pretreatments) {
          bty = "n")
   
   par(mfrow = c(1,1))
+  
+  rm(Spectra_fil_mean_bl_rw, Spectra_fil_mean_rw, 
+     Spectra_fil_median_bl_rw, Spectra_fil_median_rw, 
+     Spectra_orig_mean_rw, Spectra_orig_median_rw,
+     bc_fil_rw)
   
   ### FillPeaks - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA MEAN AND MEDIAN
   if (remove_area == T) {
@@ -3070,8 +3078,6 @@ par(mfrow = c(1,1))
 Type = Type_rw
 Sample <- c(1:length(Data$Wavenumber_min_max))
 
-PCA.Results <- list()
-
 for (Stats in pretreatments) {
   print("---------")
   print(Names[Stats])
@@ -3580,6 +3586,8 @@ if (remove_area == T) {
   }
 }
 
+rm(PCA, pca.data)
+
 
 if (perform_LDA == T) {
   
@@ -3587,7 +3595,8 @@ if (perform_LDA == T) {
   
   for (Stats in pretreatments) {
     
-    # extract data
+    
+    #extract data
     data.lda <- Data[[Type[Stats]]][!is.na(Data$Groups),Sample]
     colnames(data.lda) <- Data$Wavenumber_min_max
     groups.lda <- Data$Groups
@@ -3596,16 +3605,32 @@ if (perform_LDA == T) {
       # normalization
       norm.factors <- apply(data.lda, 1, function(x){sqrt(sum(x^2))})
       data.lda <- sweep(data.lda, 1, norm.factors, "/")
+      rm(norm.factors)
       
     }
     
     i <- 0
     j <- 0
     
+    max.LDs <- length(levels(groups.lda))-1
+    
     CV.results <- array(NA, c(max.PCs, 3, segments.out*repetitions))
+    colnames(CV.results) <- c("PCs", "mean_error", "sd_error")
     opt.PCs <- rep(NA, repetitions*segments.out)
     PCA.scores <- array(NA, c(nrow(data.lda), max.PCs, segments.out*repetitions))
     PCA.loadings <- array(NA, c(ncol(data.lda), max.PCs, segments.out*repetitions))
+    
+    LDA.scores <- array(NA, c(nrow(data.lda), max.LDs, repetitions*segments.out))
+    LDA.loadings <- array(NA, c(ncol(data.lda), max.LDs, segments.out*repetitions)) 
+    predict.probs <- matrix(NA, nrow=nrow(data.lda), ncol=repetitions)
+    
+    cm.results <- array(NA, c(length(levels(groups.lda)),length(levels(groups.lda)), 
+                              segments.out*repetitions), dimnames = list(levels(groups.lda),levels(groups.lda))) 
+    predict.results <- array(NA, c(ceiling(length(groups.lda)/(segments.out-1)), 2, segments.out*repetitions))
+    colnames(predict.results) <- c("reference", "prediction")
+    
+    roc.results <- array(NA, c(ceiling(length(groups.lda)/(segments.out-1)), 2, segments.out*repetitions))
+    colnames(roc.results) <- c("FPR", "TPR")
     
     for (r in c(1:repetitions)) {
       tfolds <- createFolds(groups.lda, k=segments.out, list=T) # split data into segments
@@ -3666,24 +3691,55 @@ if (perform_LDA == T) {
         
         PCA <- prcomp(data.lda[calib.set,], center=T, scale=F, rank=max.PCs)
         scores.calib <- PCA$x
-        PCA.scores[,,i][calib.set,] <- PCA$x
+        PCA.scores[,,i][1:nrow(PCA$x),] <- PCA$x
         PCA.loadings[,,i] <- PCA$rotation
         
         scores.calib.df <- data.frame(groups.lda[calib.set], PCA$x)
         scores.test <- predict(PCA, data.lda[test.set,])
         PCA.scores[,,i][test.set,] <- scores.test
-        model.lda <- lda(data.frame(scores.calib[,1:opt.PCs[i]]), grouping=groups.lda[calib.set], CV=F)
+        
+        model.LDA <- lda(data.frame(scores.calib[,1:opt.PCs[i]]), grouping=groups.lda[calib.set], CV=F)
+        test.predict <- predict(model.LDA, data.frame(scores.test[,1:opt.PCs[i]]))
+        LDA.scores[test.set,, i] <- test.predict$x
+        LDA.loadings[,,i] <- PCA$rotation[,1:opt.PCs[i]] %*% model.LDA$scaling
+        
+        predict.probs[test.set, r] <- test.predict$posterior[,colnames(test.predict$posterior)==pos.class]
+        
+        cm <- confusionMatrix(data=as.factor(test.predict$class), reference=groups.lda[test.set], positive=pos.class)
+        cm.results[,,i] <- cm$table
+        
+        predict.results[,,i][1:length(groups.lda[test.set]),1] <- groups.lda[test.set] # store reference class labels of TEST
+        predict.results[,,i][1:length(test.predict$class),2] <- as.factor(test.predict$class) # store predictions for TEST
+        
+        print (paste("repetition =",r,"/", repetitions, "  fold =",t, "/", segments.out, "  model",i))
         
       } # outer CV loop
       
     } # repetitions loop
+    
+    rm(calib.set, cm, CV.err, CV.res.min, delta, 
+       kfolds, model.LDA, PCA, scores.calib, scores.calib.df, scores.test, 
+       scores.train, scores.valid, test.predict, tfolds, train.df, valid.df, 
+       valid.predict)
+    
+    # Postprocessing
+    
+    cm.results.merged <- array(NA, c(2,2,repetitions))
+    
+    j <- 1
+    for (i in seq(1, (segments.out*repetitions), by=segments.out)) {
+      cm.results.merged[,,j] <- apply(cm.results[,,c(i:(i+(segments.out-1)))], c(1,2), sum)
+      j <- j + 1
+    }
+    cm.results <- cm.results.merged
+    rm(cm.results.merged)
     
   }
   
 }
 
 
-end_time = format(Sys.time(), '%X') # get endtime of analysis
-# print time difference between starttime and endtime
+end_time = format(Sys.time(), '%X') # get end time of analysis
+# print time difference between start time and end time
 print(paste("Time used for analysis:", round(as.difftime(end_time, units = "mins")-as.difftime(start_time, units = "mins"),digits=2),"minutes"))
 
