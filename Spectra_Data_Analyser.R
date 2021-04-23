@@ -32,11 +32,11 @@ loadings <- 3                        # number of loadings plotted simultaneously
 x_PC <- 1                            # PC on x-axis of score plots
 y_PC <- 2                            # PC on y-axis of score plots
 
-perform_LDA <- F                     # perform linear discriminant analysis
-repetitions <- 10                    # Number of repetitions of the cross-validation
+perform_LDA <- T                     # perform linear discriminant analysis
+repetitions <- 100                   # Number of repetitions of the cross-validation
 segments.out <- 3                    # Number of segments in the outer loop
-segments.in <- 4                     # Number of segments in the inner loop
-max.PCs <- 20                        # Max number of PCs to use for LDA
+segments.in <- 5                     # Number of segments in the inner loop
+max.PCs <- 10                        # Max number of PCs to use for LDA
 pos.class <- "Z"
 
 ### Choose Pretreatments
@@ -55,12 +55,13 @@ pos.class <- "Z"
 # 10. Rolling Ball
 
 # Enter the numbers of the treatments that should be performed here:
-pretreatments <- c(2, 4)
+pretreatments <- c(4)
 
 ### Load packages
 Packages <- c("dplyr","IDPmisc","prospectr","dendextend","baseline",
               "pls","plotrix","knitr","ggplot2","gridExtra","ggpubr",
-              "ChemoSpec", "matrixStats", "stringr", "MASS", "caret")
+              "ChemoSpec", "matrixStats", "stringr", "MASS", "caret", 
+              "ROCR", "plyr", "binom")
 
 for (p in 1:length(Packages)) {
   require(Packages[p], character.only = TRUE)
@@ -3632,6 +3633,8 @@ if (perform_LDA == T) {
     roc.results <- array(NA, c(ceiling(length(groups.lda)/(segments.out-1)), 2, segments.out*repetitions))
     colnames(roc.results) <- c("FPR", "TPR")
     
+    auc.results <- rep(NA, repetitions*segments.out)
+    
     for (r in c(1:repetitions)) {
       tfolds <- createFolds(groups.lda, k=segments.out, list=T) # split data into segments
       
@@ -3682,7 +3685,7 @@ if (perform_LDA == T) {
         CV.res.min <- CV.results[CV.results[,2,i] == min(CV.results[,2,i]),,i]
         if (is.vector(CV.res.min)) {CV.res.min <- t(as.matrix(CV.res.min))}
         
-        parsimony <- 1
+        parsimony <- 0
         threshold <- CV.res.min[1,2] + parsimony * CV.res.min[1,3]/sqrt(segments.in)
         
         CV.res.opt <- CV.results[(CV.results[,2,i] <= threshold),,i]
@@ -3699,17 +3702,27 @@ if (perform_LDA == T) {
         PCA.scores[,,i][test.set,] <- scores.test
         
         model.LDA <- lda(data.frame(scores.calib[,1:opt.PCs[i]]), grouping=groups.lda[calib.set], CV=F)
+        options(warn=-1)
         test.predict <- predict(model.LDA, data.frame(scores.test[,1:opt.PCs[i]]))
+        options(warn=0)
         LDA.scores[test.set,, i] <- test.predict$x
         LDA.loadings[,,i] <- PCA$rotation[,1:opt.PCs[i]] %*% model.LDA$scaling
         
         predict.probs[test.set, r] <- test.predict$posterior[,colnames(test.predict$posterior)==pos.class]
         
         cm <- confusionMatrix(data=as.factor(test.predict$class), reference=groups.lda[test.set], positive=pos.class)
+        print(cm)
         cm.results[,,i] <- cm$table
         
-        predict.results[,,i][1:length(groups.lda[test.set]),1] <- groups.lda[test.set] # store reference class labels of TEST
+        predict.results[,,i][1:length(groups.lda[test.set]),1] <- groups.lda[test.set] # store reference labels of TEST
         predict.results[,,i][1:length(test.predict$class),2] <- as.factor(test.predict$class) # store predictions for TEST
+        
+        roc.prob <- prediction(predict.probs[test.set, r], groups.lda[test.set])
+        roc.perf <- performance(roc.prob, "tpr","fpr")
+        auc.results[i] <- performance(roc.prob, "auc")@y.values[1]
+        
+        roc.results[,,i][1:length(roc.perf@x.values[[1]]),1] <-roc.perf@x.values[[1]]
+        roc.results[,,i][1:length(roc.perf@y.values[[1]]),2] <-roc.perf@y.values[[1]]
         
         print (paste("repetition =",r,"/", repetitions, "  fold =",t, "/", segments.out, "  model",i))
         
@@ -3718,7 +3731,7 @@ if (perform_LDA == T) {
     } # repetitions loop
     
     rm(calib.set, cm, CV.err, CV.res.min, delta, 
-       kfolds, model.LDA, PCA, scores.calib, scores.calib.df, scores.test, 
+       kfolds, model.LDA, PCA, roc.perf, roc.prob, scores.calib, scores.calib.df, scores.test, 
        scores.train, scores.valid, test.predict, tfolds, train.df, valid.df, 
        valid.predict)
     
@@ -3732,7 +3745,118 @@ if (perform_LDA == T) {
       j <- j + 1
     }
     cm.results <- cm.results.merged
-    rm(cm.results.merged)
+    
+    roc.results.avg <- array(NA, c(nrow(roc.results), 2, repetitions))
+    
+    j <- 1
+    for (i in seq(1, (segments.out*repetitions), by=segments.out)) {
+      roc.results.avg[,,j] <- apply(roc.results[,,c(i:(i+(segments.out-1)))], c(1,2), mean)
+      j <- j + 1
+    }
+    
+    roc.results <- roc.results.avg
+    
+    rm(cm.results.merged, roc.results.avg)
+    
+    ############
+    # Plotting #
+    ############
+    
+    CV.results.df <- as.data.frame(CV.results)
+    CV.results.df$median_error <- apply(CV.results[,2,], 1, median)
+    CV.results.df$quart1 <- apply(CV.results[,2,], 1, FUN=function(x) {quantile(x, 0.25)})
+    CV.results.df$quart3 <- apply(CV.results[,2,], 1, FUN=function(x) {quantile(x, 0.75)})
+    
+    p <- ggplot(data=CV.results.df)
+    
+    for (i in c(0:(segments.out*repetitions-1))) {
+      p <- p + geom_line(aes_string(x=names(CV.results.df)[i*3+1], y=names(CV.results.df)[i*3+2], col=shQuote("lg")))
+    }
+    
+    p <- p + geom_line(aes(x=PCs.1, y=median_error, col="black"), size=1) +
+             geom_line(aes(x=PCs.1, y=quart1, col="black"), size=1, linetype="dashed") +
+             geom_line(aes(x=PCs.1, y=quart3, col="black"), size=1, linetype="dashed") + 
+             scale_color_manual("Legend", values=c(lg="#d3d3d3", black="black")) + 
+             theme_bw() + theme(legend.position = "none") + 
+             labs(x="Principal Components", y="Mean Error Rate") +
+             coord_cartesian(expand=F)
+    
+    print(p)
+    
+    ############################################
+    
+    p <- ggplot(mapping=aes(opt.PCs)) + geom_bar(aes(y= ..count..*100/sum(..count..))) + theme_bw() + 
+         labs(x="Optimal number of PCs", y="Frequency [%]") +
+         scale_x_continuous(expand = expansion(mult=0.01), breaks=c(1:max.PCs)) +
+         scale_y_continuous(expand = expansion(mult=c(0, 0.05)))
+    
+    print(p)
+    
+    ################################################
+    
+    cm.type <- factor(rep(c("TN", "FP", "FN", "TP"), times=repetitions), levels=c("TN", "FP", "FN", "TP"))
+    
+    cm.df <- data.frame(c(cm.results), cm.type)
+    colnames(cm.df) <- c("Count", "Quadrant")
+    
+    x_max <- nrow(cm.df) / (4*length(levels(groups.lda)))
+    
+    cm.annotations <- as.data.frame(aggregate(cm.df$Count, by=list(cm.df$Quadrant), median))
+    colnames(cm.annotations) <- c("Quadrant", "Median")
+    
+    cm.annotations$x <- x_max/2
+    cm.annotations$y <- 50
+    
+    cm.labs <- c("True Negative", "False Positive", "False Negative", "True Positive")
+    names(cm.labs) <- c("TN", "FP", "FN", "TP")
+    
+    
+    p <- ggplot(data=cm.df, 
+                aes(x=Count)) +
+      
+         coord_cartesian(xlim=c(0,x_max), ylim=c(0,100)) +
+      
+         geom_histogram(binwidth = 1) + 
+      
+         geom_vline(data=cm.annotations, size=1,
+                    mapping=aes(xintercept=Median, col="red")) +
+      
+         geom_text(data=cm.annotations, 
+                   aes(label=Median, 
+                       x=x, y=y), 
+                   color="red",
+                   size=5) +
+      
+         facet_wrap(vars(Quadrant),
+                    labeller=labeller(Quadrant=cm.labs)) +
+      
+         labs(x="Count", 
+              y="Frequency [%]") +
+      
+         theme_bw() + theme(legend.position = "none")
+    
+    print(p)
+    
+    
+    ###############################
+    
+    cm.values <- data.frame(matrix(NA, nrow=repetitions, ncol=6))
+    colnames(cm.values) <- c("Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "AUROC")
+    
+    TN <- cm.results[1,1,]
+    FN <- cm.results[1,2,]
+    FP <- cm.results[2,1,]
+    TP <- cm.results[2,2,]
+    
+    cm.values$Accuracy <- (TN+TP) / (TN+FP+FN+TP)
+    cm.values$Sensitivity <- TP / (TP+FN)
+    cm.values$Specificity <- TN / (TN+FP)
+    cm.values$PPV <- TP / (TP+FP)
+    cm.values$NPV <- TN / (TN+FN)
+    
+    cm.values.ci <- data.frame(matrix(NA, nrow=3, ncol=6))
+    colnames(cm.values.ci) <- c("Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "AUROC")
+    rownames(cm.values.ci) <- c("Low", "Mean", "High")
     
   }
   
