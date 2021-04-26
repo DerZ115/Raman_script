@@ -1,6 +1,6 @@
 start_time = format(Sys.time(), '%X') # get starttime of analysis
 
-### USER SETTINGS ###
+### USER SETfTINGS ###
 
 VERSION_NR <- 001                    # change for multiple analysis (only for documentation)
 
@@ -58,10 +58,10 @@ pos.class <- "Z"
 pretreatments <- c(4)
 
 ### Load packages
-Packages <- c("dplyr","IDPmisc","prospectr","dendextend","baseline",
+Packages <- c("plyr","dplyr","IDPmisc","prospectr","dendextend","baseline",
               "pls","plotrix","knitr","ggplot2","gridExtra","ggpubr",
               "ChemoSpec", "matrixStats", "stringr", "MASS", "caret", 
-              "ROCR", "plyr", "binom")
+              "ROCR", "binom", "cvAUC")
 
 for (p in 1:length(Packages)) {
   require(Packages[p], character.only = TRUE)
@@ -3621,8 +3621,8 @@ if (perform_LDA == T) {
     PCA.scores <- array(NA, c(nrow(data.lda), max.PCs, segments.out*repetitions))
     PCA.loadings <- array(NA, c(ncol(data.lda), max.PCs, segments.out*repetitions))
     
-    LDA.scores <- array(NA, c(nrow(data.lda), max.LDs, repetitions*segments.out))
-    LDA.loadings <- array(NA, c(ncol(data.lda), max.LDs, segments.out*repetitions)) 
+    LDA.scores <- matrix(NA, nrow=nrow(data.lda), ncol=repetitions)
+    LDA.loadings <- matrix(NA, nrow=ncol(data.lda), ncol=repetitions) 
     predict.probs <- matrix(NA, nrow=nrow(data.lda), ncol=repetitions)
     
     cm.results <- array(NA, c(length(levels(groups.lda)),length(levels(groups.lda)), 
@@ -3705,13 +3705,12 @@ if (perform_LDA == T) {
         options(warn=-1)
         test.predict <- predict(model.LDA, data.frame(scores.test[,1:opt.PCs[i]]))
         options(warn=0)
-        LDA.scores[test.set,, i] <- test.predict$x
-        LDA.loadings[,,i] <- PCA$rotation[,1:opt.PCs[i]] %*% model.LDA$scaling
+        LDA.scores[test.set, r] <- test.predict$x
+        LDA.loadings[, r] <- PCA$rotation[,1:opt.PCs[i]] %*% model.LDA$scaling
         
         predict.probs[test.set, r] <- test.predict$posterior[,colnames(test.predict$posterior)==pos.class]
         
         cm <- confusionMatrix(data=as.factor(test.predict$class), reference=groups.lda[test.set], positive=pos.class)
-        print(cm)
         cm.results[,,i] <- cm$table
         
         predict.results[,,i][1:length(groups.lda[test.set]),1] <- groups.lda[test.set] # store reference labels of TEST
@@ -3746,6 +3745,8 @@ if (perform_LDA == T) {
     }
     cm.results <- cm.results.merged
     
+    #########################
+    
     roc.results.avg <- array(NA, c(nrow(roc.results), 2, repetitions))
     
     j <- 1
@@ -3755,6 +3756,7 @@ if (perform_LDA == T) {
     }
     
     roc.results <- roc.results.avg
+    colnames(roc.results) <- c("FPR", "TPR")
     
     rm(cm.results.merged, roc.results.avg)
     
@@ -3763,9 +3765,9 @@ if (perform_LDA == T) {
     ############
     
     CV.results.df <- as.data.frame(CV.results)
-    CV.results.df$median_error <- apply(CV.results[,2,], 1, median)
-    CV.results.df$quart1 <- apply(CV.results[,2,], 1, FUN=function(x) {quantile(x, 0.25)})
-    CV.results.df$quart3 <- apply(CV.results[,2,], 1, FUN=function(x) {quantile(x, 0.75)})
+    CV.results.df$mean_error <- apply(CV.results[,2,], 1, mean)
+    CV.results.df$sdlow <- apply(CV.results[,2,], 1, FUN=function(x) {mean(x) - sd(x)})
+    CV.results.df$sdhigh <- apply(CV.results[,2,], 1, FUN=function(x) {mean(x) + sd(x)})
     
     p <- ggplot(data=CV.results.df)
     
@@ -3773,12 +3775,13 @@ if (perform_LDA == T) {
       p <- p + geom_line(aes_string(x=names(CV.results.df)[i*3+1], y=names(CV.results.df)[i*3+2], col=shQuote("lg")))
     }
     
-    p <- p + geom_line(aes(x=PCs.1, y=median_error, col="black"), size=1) +
-             geom_line(aes(x=PCs.1, y=quart1, col="black"), size=1, linetype="dashed") +
-             geom_line(aes(x=PCs.1, y=quart3, col="black"), size=1, linetype="dashed") + 
+    p <- p + geom_line(aes(x=PCs.1, y=mean_error, col="black"), size=1) +
+             geom_line(aes(x=PCs.1, y=sdlow, col="black"), size=1, linetype="dashed") +
+             geom_line(aes(x=PCs.1, y=sdhigh, col="black"), size=1, linetype="dashed") + 
              scale_color_manual("Legend", values=c(lg="#d3d3d3", black="black")) + 
              theme_bw() + theme(legend.position = "none") + 
              labs(x="Principal Components", y="Mean Error Rate") +
+             scale_x_continuous(breaks=c(1:max.PCs)) +
              coord_cartesian(expand=F)
     
     print(p)
@@ -3799,13 +3802,14 @@ if (perform_LDA == T) {
     cm.df <- data.frame(c(cm.results), cm.type)
     colnames(cm.df) <- c("Count", "Quadrant")
     
-    x_max <- nrow(cm.df) / (4*length(levels(groups.lda)))
+    
+    x_max <- length(groups.lda) / length(levels(groups.lda))
     
     cm.annotations <- as.data.frame(aggregate(cm.df$Count, by=list(cm.df$Quadrant), median))
     colnames(cm.annotations) <- c("Quadrant", "Median")
     
     cm.annotations$x <- x_max/2
-    cm.annotations$y <- 50
+    cm.annotations$y <- repetitions/2
     
     cm.labs <- c("True Negative", "False Positive", "False Negative", "True Positive")
     names(cm.labs) <- c("TN", "FP", "FN", "TP")
@@ -3814,9 +3818,9 @@ if (perform_LDA == T) {
     p <- ggplot(data=cm.df, 
                 aes(x=Count)) +
       
-         coord_cartesian(xlim=c(0,x_max), ylim=c(0,100)) +
+         coord_cartesian(xlim=c(0,x_max), ylim=c(0,repetitions)) +
       
-         geom_histogram(binwidth = 1) + 
+         geom_bar(width=1) + 
       
          geom_vline(data=cm.annotations, size=1,
                     mapping=aes(xintercept=Median, col="red")) +
@@ -3831,7 +3835,7 @@ if (perform_LDA == T) {
                     labeller=labeller(Quadrant=cm.labs)) +
       
          labs(x="Count", 
-              y="Frequency [%]") +
+              y="") +
       
          theme_bw() + theme(legend.position = "none")
     
@@ -3854,10 +3858,89 @@ if (perform_LDA == T) {
     cm.values$PPV <- TP / (TP+FP)
     cm.values$NPV <- TN / (TN+FN)
     
-    cm.values.ci <- data.frame(matrix(NA, nrow=3, ncol=6))
-    colnames(cm.values.ci) <- c("Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "AUROC")
-    rownames(cm.values.ci) <- c("Low", "Mean", "High")
+    cm.values.ci <- data.frame(matrix(NA, nrow=6, ncol=3))
+    colnames(cm.values.ci) <- c("Mean", "Low", "High")
+    rownames(cm.values.ci) <- c("Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "AUROC")
     
+    n_tot <- length(groups.lda)
+    n_pos <- sum(groups.lda == pos.class)
+    n_neg <- n_tot - n_pos
+    n_pos_pred <- TP+FP
+    n_neg_pred <- TN+FN
+    
+    
+    cm.values.ci["Accuracy",] <- binom.confint(x=n_tot*mean(cm.values$Accuracy),
+                                               n=n_tot,
+                                               methods = "bayes")[,4:6]
+    
+    cm.values.ci["Sensitivity",] <- binom.confint(x=n_pos*mean(cm.values$Sensitivity),
+                                               n=n_pos,
+                                               methods = "bayes")[,4:6]
+    
+    cm.values.ci["Specificity",] <- binom.confint(x=n_neg*mean(cm.values$Specificity),
+                                               n=n_neg,
+                                               methods = "bayes")[,4:6]
+    
+    cm.values.ci["PPV",] <- colMeans(binom.confint(x=n_pos_pred*mean(cm.values$PPV),
+                                                   n=n_pos_pred,
+                                                   methods = "bayes")[,4:6])
+    
+    cm.values.ci["NPV",] <- colMeans(binom.confint(x=n_neg_pred*mean(cm.values$NPV),
+                                                   n=n_neg_pred,
+                                                   methods = "bayes")[,4:6])
+    
+    
+    auc.labels <- matrix(rep(groups.lda, repetitions), nrow(predict.probs), repetitions)
+    cm.values.ci["AUROC",] <- unlist(ci.cvAUC(predict.probs, auc.labels)[c("cvAUC", "ci")])
+    
+    cm.values.ci <- round(cm.values.ci*100, 1)
+    
+    print(cm.values.ci)
+    
+    #########################
+    
+    LDA.scores.df <- data.frame(groups.lda, apply(LDA.scores, 1 , function(x) median(x)))
+    colnames(LDA.scores.df) <- c("Group", "Score")
+    
+    p <- ggplot(data=LDA.scores.df, aes(x=Group, y=Score)) + 
+         stat_boxplot(geom="errorbar", width=0.3) +
+         geom_boxplot(outlier.shape = NA, width=0.7) + 
+         geom_jitter(aes(col=Group), width=0.1, show.legend=F) +
+         geom_hline(yintercept=0, linetype="dashed") +
+         scale_x_discrete(breaks=groups, labels=legend) + 
+         ggtitle("LD scores by group") + theme_bw() + 
+         theme(plot.title = element_text(hjust = 0.5))
+    
+     print(p)
+     
+     ########################
+     
+     
+     roc.results.df <- as.data.frame(roc.results)
+     roc.results.df$median_FPR <- apply(roc.results[,1,], 1, median, na.rm=T)
+     roc.results.df$median_TPR <- apply(roc.results[,2,], 1, median, na.rm=T)
+     
+     roc.results.df <- rbind(roc.results.df, rep(1, ncol(roc.results.df)))
+     
+     p <- ggplot(data=roc.results.df)
+     
+     for (i in c(0:(repetitions-1))) {
+       p <- p + geom_line(aes_string(x=names(roc.results.df)[i*2+1], y=names(roc.results.df)[i*2+2], col=shQuote("lg")))
+     }
+     
+     
+     p <- p + geom_line(aes(x=median_FPR, y=median_TPR, col="black"), size=1) + 
+       geom_segment(x=0, y=0, xend=1, yend=1, linetype="dashed") +
+       scale_color_manual("Legend", values=c(lg="#d3d3d3", black="black")) + 
+       theme_bw() + theme(legend.position = "none") + 
+       labs(x="False Positive Rate", y="True Positive Rate") + 
+       scale_x_continuous(expand=expansion(mult=0.01)) + 
+       scale_y_continuous(expand=expansion(mult=0.01))
+     
+     options(warn=-1)
+     print(p)
+     options(warn=0)
+  
   }
   
 }
