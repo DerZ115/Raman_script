@@ -61,7 +61,7 @@ pretreatments <- c(4)
 Packages <- c("plyr","dplyr","IDPmisc","prospectr","dendextend","baseline",
               "pls","plotrix","knitr","ggplot2","gridExtra","ggpubr","ggpmisc",
               "ChemoSpec", "matrixStats", "stringr", "MASS", "caret", 
-              "ROCR", "binom", "cvAUC","ggrepel")
+              "ROCR", "binom", "cvAUC","reshape2")
 
 for (p in 1:length(Packages)) {
   require(Packages[p], character.only = TRUE)
@@ -3994,14 +3994,18 @@ if (perform_LDA == T) {
      colnames(spectra.combined) <- c("WN", "INT")
      
      spectra.combined$WN <- Data$Wavenumber_min_max
-     for (i in length(Wavenumber_min_max))
+     spectra.combined$INT <- apply(spectra_median.df[,paste0("Median_", groups)], 1, max)
+     
+     spectra_median.df <- reshape(spectra_median.df, varying=2:ncol(spectra_median.df), sep="_", direction = "long", timevar="Group")
      
      p <- ggplot(spectra_median.df, aes(x=Wavenumber, y=Median)) + 
           geom_line(aes(col=Group), size=0.5) +
           geom_ribbon(aes(ymin=Q1, ymax=Q3, fill=Group), alpha=0.2, show.legend=FALSE) +
-          stat_peaks(data=subset(spectra_median.df, Group == group[1]), geom="text", span=41, color="black", x.label.fmt="%.0f", ignore_threshold=0, angle=90, vjust=0.5, hjust=-0.75) +
-          #scale_color_discrete(label=legend) +
-          #scale_fill_discrete(label=legend) +
+          stat_peaks(data=spectra.combined, aes(x=WN, y=INT), geom="text", span=33, 
+                     color="black", x.label.fmt="%.0f", ignore_threshold=0.02, angle=90, 
+                     vjust=0.5, hjust=-0.75) +
+          scale_color_discrete(label=legend) +
+          scale_fill_discrete(label=legend) +
           scale_x_continuous(expand=expansion(0)) + 
           scale_y_continuous(expand=expansion(c(0,0.1))) +
           theme_bw()
