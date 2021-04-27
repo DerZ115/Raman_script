@@ -37,6 +37,24 @@ min_range <- "300"                   # reduce minimum wavenumber to...
 remove_area <- F                     # remove Area: yes = T | no = F
 area <- c("1250", "1450")            # exclude values from-to wavenumber
 
+### Choose Pretreatments
+
+# Available Methods:
+# ================== 
+#  1. Standard Normal Variate
+#  2. Detrend
+#  3. Asymmetric Least Squares
+#  4. FillPeaks
+#  5. Iterative Restricted Least Squares
+#  6. Median Window
+#  7. Modified Polynomial Fitting
+#  8. Simultaneous Peak Detection and Baseline Correction
+#  9. Robust Baseline Estimation
+# 10. Rolling Ball
+
+# Enter the numbers of the treatments that should be performed here:
+pretreatments <- c(2,4)
+
 # plot size for output
 knitr::opts_chunk$set(fig.width=12, fig.height=6)
 
@@ -363,55 +381,60 @@ YOUR TEXT HERE ...
 ```{r SNV_1, echo=FALSE, message=FALSE, warning=FALSE}
 # Standard Normal Variate - REDUCED WAVENUMBER
 
-Data$Spectra_SNV_rw <- standardNormalVariate(Data$Spectra_min_max)
+if (1 %in% pretreatments) {
+  
+  Data$Spectra_SNV_rw <- standardNormalVariate(Data$Spectra_min_max)
 
-# calculate mean of spectra
-Spectra_SNV_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_SNV_mean_rw <- rbind(Spectra_SNV_mean_rw, t(colMeans(as.matrix(Data$Spectra_SNV_rw[Data$Groups==name,]))))
+  # calculate mean of spectra
+  Spectra_SNV_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_SNV_mean_rw <- rbind(Spectra_SNV_mean_rw, t(colMeans(as.matrix(Data$Spectra_SNV_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_SNV_mean_rw) <- groups
+  Data$Spectra_SNV_mean_rw <- Spectra_SNV_mean_rw
+  
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_SNV_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (mean) corrected with Standard Normal Variate, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_SNV_mean_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  # calculate median of spectra
+  Spectra_SNV_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_SNV_median_rw <- rbind(Spectra_SNV_median_rw, t(colMedians(as.matrix(Data$Spectra_SNV_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_SNV_median_rw) <- groups
+  Data$Spectra_SNV_median_rw <- Spectra_SNV_median_rw
+  
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_SNV_median_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (median) corrected with Standard Normal Variate, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_SNV_median_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+    
 }
-rownames(Spectra_SNV_mean_rw) <- groups
-Data$Spectra_SNV_mean_rw <- Spectra_SNV_mean_rw
 
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_SNV_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (mean) corrected with Standard Normal Variate, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_SNV_mean_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-# calculate median of spectra
-Spectra_SNV_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_SNV_median_rw <- rbind(Spectra_SNV_median_rw, t(colMedians(as.matrix(Data$Spectra_SNV_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_SNV_median_rw) <- groups
-Data$Spectra_SNV_median_rw <- Spectra_SNV_median_rw
-
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_SNV_median_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (median) corrected with Standard Normal Variate, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_SNV_median_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
 ```
 
 ### Standard Normal Variate with reduced wavenumber range and excluded area
@@ -420,7 +443,7 @@ YOUR TEXT HERE...
 ~~~
 ```{r SNV_2, echo=FALSE, message=FALSE, warning=FALSE}
 # Standard Normal Variate - REDUCED WAVENUMBER/EXCLUDED AREA
-if (remove_area == T) {
+if ((remove_area == T) & (1 %in% pretreatments)) {
   
   Data$Spectra_SNV_area <- standardNormalVariate(Data$Spectra_area)
   
@@ -481,55 +504,60 @@ YOUR TEXT HERE ...
 ```{r Det_1, echo=FALSE, message=FALSE, warning=FALSE}
 # Detrend - REDUCED WAVENUMBER
 
-Data$Spectra_det_rw <- detrend(Data$Spectra_min_max, wav = Data$Wavenumber_min_max)
+if (2 %in% pretreatments) {
+  
+  Data$Spectra_det_rw <- detrend(Data$Spectra_min_max, wav = Data$Wavenumber_min_max)
 
-# calculate mean of spectra
-Spectra_det_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_det_mean_rw <- rbind(Spectra_det_mean_rw, t(colMeans(as.matrix(Data$Spectra_det_rw[Data$Groups==name,]))))
+  # calculate mean of spectra
+  Spectra_det_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_det_mean_rw <- rbind(Spectra_det_mean_rw, t(colMeans(as.matrix(Data$Spectra_det_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_det_mean_rw) <- groups
+  Data$Spectra_det_mean_rw <- Spectra_det_mean_rw
+  
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_det_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (mean) corrected with Detrend, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_det_mean_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  # calculate median of spectra
+  Spectra_det_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_det_median_rw <- rbind(Spectra_det_median_rw, t(colMeans(as.matrix(Data$Spectra_det_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_det_median_rw) <- groups
+  Data$Spectra_det_median_rw <- Spectra_det_median_rw
+  
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_det_median_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (median) corrected with Detrend, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_det_median_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
 }
-rownames(Spectra_det_mean_rw) <- groups
-Data$Spectra_det_mean_rw <- Spectra_det_mean_rw
 
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_det_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (mean) corrected with Detrend, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_det_mean_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-# calculate median of spectra
-Spectra_det_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_det_median_rw <- rbind(Spectra_det_median_rw, t(colMeans(as.matrix(Data$Spectra_det_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_det_median_rw) <- groups
-Data$Spectra_det_median_rw <- Spectra_det_median_rw
-
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_det_median_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (median) corrected with Detrend, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_det_median_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
 ```
 
 ### Detrend with reduced wavenumber range and excluded area
@@ -538,7 +566,7 @@ YOUR TEXT HERE ...
 ~~~
 ```{r Det_2, echo=FALSE, message=FALSE, warning=FALSE}
 # Detrend - REDUCED WAVENUMBER/EXCLUDED AREA
-if (remove_area == T) {
+if ((remove_area == T) & (2 %in% pretreatments)) {
   
   Data$Spectra_det_area <- detrend(Data$Spectra_area, wav = Data$Wavenumber_area)
   
@@ -604,161 +632,172 @@ YOUR TEXT HERE ...
 ```{r ALS_1_par}
 # Asymmetric Least Squares - REDUCED WAVENUMBER SPECTRA
 
-# adjust parameters here:
-bc_als_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
-                   method = "als",  
-                   lambda = 3,         # 2nd derivative constraint
-                   p = 0.05,           # Weighting of positive residuals
-                   maxit = 20)         # Maximum number of iterations
+if (3 %in% pretreatments) {
+  
+  # adjust parameters here:
+  bc_als_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
+                        method = "als",  
+                        lambda = 3,         # 2nd derivative constraint
+                        p = 0.05,           # Weighting of positive residuals
+                        maxit = 20)         # Maximum number of iterations
+  
+}
+
 ```
 
 ```{r ALS_1, echo=FALSE, message=FALSE, warning=FALSE}
 # Asymmetric Least Squares - REDUCED WAVENUMBER SPECTRA MEAN AND MEDIAN
-# extract data from baseline object
-Data$Spectra_als_orig_rw <- as.data.frame(getSpectra(bc_als_rw))
-colnames(bc_als_rw@baseline) <- colnames(bc_als_rw@spectra)
-Data$Spectra_als_bl_rw <- as.data.frame(getBaseline(bc_als_rw))
-Data$Spectra_als_rw <- as.data.frame(getCorrected(bc_als_rw))
 
-par(mfrow = c(num_x,1))
-
-### calculate mean of reduced spectra
-
-Spectra_orig_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_als_orig_rw[Data$Groups==name,]))))
+if (3 %in% pretreatments) {
+  
+  # extract data from baseline object
+  Data$Spectra_als_orig_rw <- as.data.frame(getSpectra(bc_als_rw))
+  colnames(bc_als_rw@baseline) <- colnames(bc_als_rw@spectra)
+  Data$Spectra_als_bl_rw <- as.data.frame(getBaseline(bc_als_rw))
+  Data$Spectra_als_rw <- as.data.frame(getCorrected(bc_als_rw))
+  
+  par(mfrow = c(num_x,1))
+  
+  ### calculate mean of reduced spectra
+  
+  Spectra_orig_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_als_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_mean_rw) <- groups
+  Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
+  
+  ### calculate median of reduced spectra
+  
+  Spectra_orig_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_als_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_median_rw) <- groups
+  Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
+  
+  ### calculate mean of baseline
+  
+  Spectra_als_mean_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_als_mean_bl_rw <- rbind(Spectra_als_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_als_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_als_mean_bl_rw) <- groups
+  Data$Spectra_als_mean_bl_rw <- Spectra_als_mean_bl_rw
+  
+  
+  ### calculate median of baseline
+  
+  Spectra_als_median_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_als_median_bl_rw <- rbind(Spectra_als_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_als_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_als_median_bl_rw) <- groups
+  Data$Spectra_als_median_bl_rw <- Spectra_als_median_bl_rw
+  
+  
+  
+  ### combine mean of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_mean_rw <- data.frame()
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_als_mean_bl_rw)
+  
+  # plot mean of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Mean of original spectra and calculated baseline with Asymmetric Least Squares, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### combine median of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_med_rw <- data.frame()
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_als_median_bl_rw)
+  
+  # plot median of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_med_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Median of original spectra and calculated baseline with Asymmetric Least Squares, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))#rownames(Data$Spectra_orig_and_bl_rw)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  
+  ### calculate mean of corrected reduced spectra
+  
+  Spectra_als_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_als_mean_rw <- rbind(Spectra_als_mean_rw, t(colMeans(as.matrix(Data$Spectra_als_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_als_mean_rw) <- groups
+  Data$Spectra_als_mean_rw <- Spectra_als_mean_rw
+  
+  # plot mean of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_als_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (mean) corrected with Asymmetric Least Squares, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_als_mean_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### calculate median of corrected reduced spectra
+  
+  Spectra_als_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_als_median_rw <- rbind(Spectra_als_median_rw, t(colMedians(as.matrix(Data$Spectra_als_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_als_median_rw) <- groups
+  Data$Spectra_als_median_rw <- Spectra_als_median_rw
+  
+  # plot median of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_als_median_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (median) corrected with Asymmetric Least Squares, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_als_median_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  par(mfrow = c(1,1))
+  
 }
-rownames(Spectra_orig_mean_rw) <- groups
-Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
 
-### calculate median of reduced spectra
-
-Spectra_orig_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_als_orig_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_orig_median_rw) <- groups
-Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
-
-### calculate mean of baseline
-
-Spectra_als_mean_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_als_mean_bl_rw <- rbind(Spectra_als_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_als_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_als_mean_bl_rw) <- groups
-Data$Spectra_als_mean_bl_rw <- Spectra_als_mean_bl_rw
-
-
-### calculate median of baseline
-
-Spectra_als_median_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_als_median_bl_rw <- rbind(Spectra_als_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_als_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_als_median_bl_rw) <- groups
-Data$Spectra_als_median_bl_rw <- Spectra_als_median_bl_rw
-
-
-
-### combine mean of reduced spectra and baseline
-Data$Spectra_orig_and_bl_mean_rw <- data.frame()
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_als_mean_bl_rw)
-
-# plot mean of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Mean of original spectra and calculated baseline with Asymmetric Least Squares, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### combine median of reduced spectra and baseline
-Data$Spectra_orig_and_bl_med_rw <- data.frame()
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_als_median_bl_rw)
-
-# plot median of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_med_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Median of original spectra and calculated baseline with Asymmetric Least Squares, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))#rownames(Data$Spectra_orig_and_bl_rw)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-
-### calculate mean of corrected reduced spectra
-
-Spectra_als_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_als_mean_rw <- rbind(Spectra_als_mean_rw, t(colMeans(as.matrix(Data$Spectra_als_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_als_mean_rw) <- groups
-Data$Spectra_als_mean_rw <- Spectra_als_mean_rw
-
-# plot mean of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_als_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (mean) corrected with Asymmetric Least Squares, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_als_mean_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### calculate median of corrected reduced spectra
-
-Spectra_als_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_als_median_rw <- rbind(Spectra_als_median_rw, t(colMedians(as.matrix(Data$Spectra_als_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_als_median_rw) <- groups
-Data$Spectra_als_median_rw <- Spectra_als_median_rw
-
-# plot median of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_als_median_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (median) corrected with Asymmetric Least Squares, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_als_median_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-par(mfrow = c(1,1))
 ```
 
 ### Asymmetric Least Squares with reduced wavenumber range and excluded area
@@ -767,7 +806,7 @@ YOUR TEXT HERE ...
 ~~~
 ```{r ALS_2_par}
 # Asymmetric Least Squares - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA
-if (remove_area == T) {
+if ((remove_area == T) & (3 %in% pretreatments)) {
 
   # adjust parameters here:
   bc_als_area <- baseline(spectra = as.matrix(Data$Spectra_area), 
@@ -780,7 +819,7 @@ if (remove_area == T) {
 
 ```{r ALS_2, echo=FALSE, message=FALSE, warning=FALSE}
 # Asymmetric Least Squares - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA MEAN AND MEDIAN
-if (remove_area == T) {
+if ((remove_area == T) & (3 %in% pretreatments)) {
   # extract data from baseline object
   Data$Spectra_als_orig_area <- as.data.frame(getSpectra(bc_als_area))
   colnames(bc_als_area@baseline) <- colnames(bc_als_area@spectra)
@@ -938,162 +977,173 @@ YOUR TEXT HERE ...
 ```{r Fill_1_par}
 # FillPeaks - REDUCED WAVENUMBER SPECTRA                                                         
 
-# adjust parameters here:
-bc_fil_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
-                      method = "fillPeaks",  
-                      lambda=1,        # 2nd derivative penalty for primary smoothing
-                      hwi=10,           # Half width of local windows
-                      it=6,            # Number of iterations in suppression loop
-                      int=400)         # Number of buckets to divide spectra into
+if (4 %in% pretreatments) {
+  
+  # adjust parameters here:
+  bc_fil_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
+                        method = "fillPeaks",  
+                        lambda=1,        # 2nd derivative penalty for primary smoothing
+                        hwi=10,           # Half width of local windows
+                        it=6,            # Number of iterations in suppression loop
+                        int=400)         # Number of buckets to divide spectra into
+  
+}
+
 ```
 
 ```{r Fill_1, echo=FALSE, message=FALSE, warning=FALSE}
 # FillPeaks - REDUCED WAVENUMBER SPECTRA MEAN AND MEDIAN
-# extract data from baseline object
-Data$Spectra_fil_orig_rw <- as.data.frame(getSpectra(bc_fil_rw))
-colnames(bc_fil_rw@baseline) <- colnames(bc_fil_rw@spectra)
-Data$Spectra_fil_bl_rw <- as.data.frame(getBaseline(bc_fil_rw))
-Data$Spectra_fil_rw <- as.data.frame(getCorrected(bc_fil_rw))
 
-par(mfrow = c(num_x,1))
-
-### calculate mean of reduced spectra
-
-Spectra_orig_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_fil_orig_rw[Data$Groups==name,]))))
+if (4 %in% pretreatments) {
+  
+  # extract data from baseline object
+  Data$Spectra_fil_orig_rw <- as.data.frame(getSpectra(bc_fil_rw))
+  colnames(bc_fil_rw@baseline) <- colnames(bc_fil_rw@spectra)
+  Data$Spectra_fil_bl_rw <- as.data.frame(getBaseline(bc_fil_rw))
+  Data$Spectra_fil_rw <- as.data.frame(getCorrected(bc_fil_rw))
+  
+  par(mfrow = c(num_x,1))
+  
+  ### calculate mean of reduced spectra
+  
+  Spectra_orig_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_fil_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_mean_rw) <- groups
+  Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
+  
+  ### calculate median of reduced spectra
+  
+  Spectra_orig_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_fil_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_median_rw) <- groups
+  Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
+  
+  ### calculate mean of baseline
+  
+  Spectra_fil_mean_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_fil_mean_bl_rw <- rbind(Spectra_fil_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_fil_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_fil_mean_bl_rw) <- groups
+  Data$Spectra_fil_mean_bl_rw <- Spectra_fil_mean_bl_rw
+  
+  
+  ### calculate median of baseline
+  
+  Spectra_fil_median_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_fil_median_bl_rw <- rbind(Spectra_fil_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_fil_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_fil_median_bl_rw) <- groups
+  Data$Spectra_fil_median_bl_rw <- Spectra_fil_median_bl_rw
+  
+  
+  
+  ### combine mean of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_mean_rw <- data.frame()
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_fil_mean_bl_rw)
+  
+  # plot mean of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Mean of original spectra and calculated baseline with FillPeaks, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### combine median of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_med_rw <- data.frame()
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_fil_median_bl_rw)
+  
+  # plot median of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_med_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Median of original spectra and calculated baseline with FillPeaks, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  
+  ### calculate mean of corrected reduced spectra
+  
+  Spectra_fil_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_fil_mean_rw <- rbind(Spectra_fil_mean_rw, t(colMeans(as.matrix(Data$Spectra_fil_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_fil_mean_rw) <- groups
+  Data$Spectra_fil_mean_rw <- Spectra_fil_mean_rw
+  
+  # plot mean of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_fil_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (mean) corrected with FillPeaks, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_fil_mean_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### calculate median of corrected reduced spectra
+  
+  Spectra_fil_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_fil_median_rw <- rbind(Spectra_fil_median_rw, t(colMedians(as.matrix(Data$Spectra_fil_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_fil_median_rw) <- groups
+  Data$Spectra_fil_median_rw <- Spectra_fil_median_rw
+  
+  # plot median of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_fil_median_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (median) corrected with FillPeaks, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_fil_median_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  par(mfrow = c(1,1))
+  
 }
-rownames(Spectra_orig_mean_rw) <- groups
-Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
 
-### calculate median of reduced spectra
-
-Spectra_orig_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_fil_orig_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_orig_median_rw) <- groups
-Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
-
-### calculate mean of baseline
-
-Spectra_fil_mean_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_fil_mean_bl_rw <- rbind(Spectra_fil_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_fil_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_fil_mean_bl_rw) <- groups
-Data$Spectra_fil_mean_bl_rw <- Spectra_fil_mean_bl_rw
-
-
-### calculate median of baseline
-
-Spectra_fil_median_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_fil_median_bl_rw <- rbind(Spectra_fil_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_fil_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_fil_median_bl_rw) <- groups
-Data$Spectra_fil_median_bl_rw <- Spectra_fil_median_bl_rw
-
-
-
-### combine mean of reduced spectra and baseline
-Data$Spectra_orig_and_bl_mean_rw <- data.frame()
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_fil_mean_bl_rw)
-
-# plot mean of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Mean of original spectra and calculated baseline with FillPeaks, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### combine median of reduced spectra and baseline
-Data$Spectra_orig_and_bl_med_rw <- data.frame()
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_fil_median_bl_rw)
-
-# plot median of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_med_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Median of original spectra and calculated baseline with FillPeaks, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-
-### calculate mean of corrected reduced spectra
-
-Spectra_fil_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_fil_mean_rw <- rbind(Spectra_fil_mean_rw, t(colMeans(as.matrix(Data$Spectra_fil_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_fil_mean_rw) <- groups
-Data$Spectra_fil_mean_rw <- Spectra_fil_mean_rw
-
-# plot mean of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_fil_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (mean) corrected with FillPeaks, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_fil_mean_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### calculate median of corrected reduced spectra
-
-Spectra_fil_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_fil_median_rw <- rbind(Spectra_fil_median_rw, t(colMedians(as.matrix(Data$Spectra_fil_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_fil_median_rw) <- groups
-Data$Spectra_fil_median_rw <- Spectra_fil_median_rw
-
-# plot median of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_fil_median_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (median) corrected with FillPeaks, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_fil_median_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-par(mfrow = c(1,1))
 ```
 
 ### FillPeaks with reduced wavenumber range and excluded area
@@ -1102,7 +1152,7 @@ YOUR TEXT HERE ...
 ~~~
 ```{r Fill_2_par}
 # FillPeaks - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA
-if (remove_area == T) {
+if ((remove_area == T) & (4 %in% pretreatments)) {
 
   # adjust parameters here:
   bc_fil_area <- baseline(spectra = as.matrix(Data$Spectra_area),
@@ -1116,7 +1166,7 @@ if (remove_area == T) {
 
 ```{r Fill_2, echo=FALSE, message=FALSE, warning=FALSE}
 # FillPeaks - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA MEAN AND MEDIAN
-if (remove_area == T) {  
+if ((remove_area == T) & (4 %in% pretreatments)) {  
   # extract data from baseline object
   Data$Spectra_fil_orig_area <- as.data.frame(getSpectra(bc_fil_area))
   colnames(bc_fil_area@baseline) <- colnames(bc_fil_area@spectra)
@@ -1274,162 +1324,173 @@ YOUR TEXT HERE ...
 ```{r IRLS_1_par}
 # Iterative Restricted Least Squares - REDUCED WAVENUMBER SPECTRA
 
-# adjust parameters here:
-bc_irl_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
-                      method = "irls", 
-                      lambda1 = 5,     # 2nd derivative constraint for primary smoothing
-                      lambda2 = 4,     # 2nd derivative constraint for secondary smoothing
-                      maxit = 200,     # Maximum number of iterations
-                      wi = 0.05)       # Weighting of positive residuals
+if (5 %in% pretreatments) {
+  
+  # adjust parameters here:
+  bc_irl_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
+                        method = "irls", 
+                        lambda1 = 5,     # 2nd derivative constraint for primary smoothing
+                        lambda2 = 4,     # 2nd derivative constraint for secondary smoothing
+                        maxit = 200,     # Maximum number of iterations
+                        wi = 0.05)       # Weighting of positive residuals
+  
+}
+
 ```
 
 ```{r IRLS_1, echo=FALSE, message=FALSE, warning=FALSE}
 # Iterative Restricted Least Squares - REDUCED WAVENUMBER SPECTRA MEAN AND MEDIAN
-# extract data from baseline object
-Data$Spectra_irl_orig_rw <- as.data.frame(getSpectra(bc_irl_rw))
-colnames(bc_irl_rw@baseline) <- colnames(bc_irl_rw@spectra)
-Data$Spectra_irl_bl_rw <- as.data.frame(getBaseline(bc_irl_rw))
-Data$Spectra_irl_rw <- as.data.frame(getCorrected(bc_irl_rw))
 
-par(mfrow = c(num_x,1))
-
-### calculate mean of reduced spectra
-
-Spectra_orig_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_irl_orig_rw[Data$Groups==name,]))))
+if (5 %in% pretreatments) {
+  
+  # extract data from baseline object
+  Data$Spectra_irl_orig_rw <- as.data.frame(getSpectra(bc_irl_rw))
+  colnames(bc_irl_rw@baseline) <- colnames(bc_irl_rw@spectra)
+  Data$Spectra_irl_bl_rw <- as.data.frame(getBaseline(bc_irl_rw))
+  Data$Spectra_irl_rw <- as.data.frame(getCorrected(bc_irl_rw))
+  
+  par(mfrow = c(num_x,1))
+  
+  ### calculate mean of reduced spectra
+  
+  Spectra_orig_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_irl_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_mean_rw) <- groups
+  Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
+  
+  ### calculate median of reduced spectra
+  
+  Spectra_orig_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_irl_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_median_rw) <- groups
+  Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
+  
+  ### calculate mean of baseline
+  
+  Spectra_irl_mean_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_irl_mean_bl_rw <- rbind(Spectra_irl_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_irl_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_irl_mean_bl_rw) <- groups
+  Data$Spectra_irl_mean_bl_rw <- Spectra_irl_mean_bl_rw
+  
+  
+  ### calculate median of baseline
+  
+  Spectra_irl_median_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_irl_median_bl_rw <- rbind(Spectra_irl_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_irl_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_irl_median_bl_rw) <- groups
+  Data$Spectra_irl_median_bl_rw <- Spectra_irl_median_bl_rw
+  
+  
+  
+  ### combine mean of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_mean_rw <- data.frame()
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_irl_mean_bl_rw)
+  
+  # plot mean of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Mean of original spectra and calculated baseline with Iterative Restricted Least Squares, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### combine median of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_med_rw <- data.frame()
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_irl_median_bl_rw)
+  
+  # plot median of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_med_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Median of original spectra and calculated baseline with Iterative Restricted Least Squares, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  
+  ### calculate mean of corrected reduced spectra
+  
+  Spectra_irl_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_irl_mean_rw <- rbind(Spectra_irl_mean_rw, t(colMeans(as.matrix(Data$Spectra_irl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_irl_mean_rw) <- groups
+  Data$Spectra_irl_mean_rw <- Spectra_irl_mean_rw
+  
+  # plot mean of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_irl_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (mean) corrected with Iterative Restricted Least Squares, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_irl_mean_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### calculate median of corrected reduced spectra
+  
+  Spectra_irl_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_irl_median_rw <- rbind(Spectra_irl_median_rw, t(colMedians(as.matrix(Data$Spectra_irl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_irl_median_rw) <- groups
+  Data$Spectra_irl_median_rw <- Spectra_irl_median_rw
+  
+  # plot median of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_irl_median_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (median) corrected with Iterative Restricted Least Squares, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_irl_median_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  par(mfrow = c(1,1))
+  
 }
-rownames(Spectra_orig_mean_rw) <- groups
-Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
 
-### calculate median of reduced spectra
-
-Spectra_orig_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_irl_orig_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_orig_median_rw) <- groups
-Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
-
-### calculate mean of baseline
-
-Spectra_irl_mean_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_irl_mean_bl_rw <- rbind(Spectra_irl_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_irl_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_irl_mean_bl_rw) <- groups
-Data$Spectra_irl_mean_bl_rw <- Spectra_irl_mean_bl_rw
-
-
-### calculate median of baseline
-
-Spectra_irl_median_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_irl_median_bl_rw <- rbind(Spectra_irl_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_irl_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_irl_median_bl_rw) <- groups
-Data$Spectra_irl_median_bl_rw <- Spectra_irl_median_bl_rw
-
-
-
-### combine mean of reduced spectra and baseline
-Data$Spectra_orig_and_bl_mean_rw <- data.frame()
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_irl_mean_bl_rw)
-
-# plot mean of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Mean of original spectra and calculated baseline with Iterative Restricted Least Squares, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### combine median of reduced spectra and baseline
-Data$Spectra_orig_and_bl_med_rw <- data.frame()
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_irl_median_bl_rw)
-
-# plot median of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_med_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Median of original spectra and calculated baseline with Iterative Restricted Least Squares, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-
-### calculate mean of corrected reduced spectra
-
-Spectra_irl_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_irl_mean_rw <- rbind(Spectra_irl_mean_rw, t(colMeans(as.matrix(Data$Spectra_irl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_irl_mean_rw) <- groups
-Data$Spectra_irl_mean_rw <- Spectra_irl_mean_rw
-
-# plot mean of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_irl_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (mean) corrected with Iterative Restricted Least Squares, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_irl_mean_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### calculate median of corrected reduced spectra
-
-Spectra_irl_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_irl_median_rw <- rbind(Spectra_irl_median_rw, t(colMedians(as.matrix(Data$Spectra_irl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_irl_median_rw) <- groups
-Data$Spectra_irl_median_rw <- Spectra_irl_median_rw
-
-# plot median of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_irl_median_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (median) corrected with Iterative Restricted Least Squares, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_irl_median_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-par(mfrow = c(1,1))
 ```
 
 ### Iterative Restricted Least Squares with reduced wavenumber range and excluded area
@@ -1438,7 +1499,7 @@ YOUR TEXT HERE ...
 ~~~
 ```{r IRLS_2_par}
 # Iterative Restricted Least Squares - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA
-if (remove_area == T) {
+if ((remove_area == T) & (5 %in% pretreatments)) {
 
   # adjust parameters here:
   bc_irl_area <- baseline(spectra = as.matrix(Data$Spectra_area), 
@@ -1451,7 +1512,7 @@ if (remove_area == T) {
 ```
 
 ```{r IRLS_2, echo=FALSE, message=FALSE, warning=FALSE}
-if (remove_area == T) {  
+if ((remove_area == T) & (5 %in% pretreatments)) {  
   # extract data from baseline object
   Data$Spectra_irl_orig_area <- as.data.frame(getSpectra(bc_irl_area))
   colnames(bc_irl_area@baseline) <- colnames(bc_irl_area@spectra)
@@ -1609,158 +1670,169 @@ YOUR TEXT HERE ...
 ```{r MedWin_1_par}
 # Median window - REDUCED WAVENUMBER SPECTRA
 
-# adjust parameters here:
-bc_med_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
-                      method = "medianWindow", 
-                      hwm = 150)       # Window half width for local medians
+if (6 %in% pretreatments) {
+  
+  # adjust parameters here:
+  bc_med_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
+                        method = "medianWindow", 
+                        hwm = 150)       # Window half width for local medians
+  
+}
+
 ```
 
 ```{r MedWin_1, echo=FALSE, message=FALSE, warning=FALSE}
-# extract data from baseline object
-Data$Spectra_med_orig_rw <- as.data.frame(getSpectra(bc_med_rw))
-colnames(bc_med_rw@baseline) <- colnames(bc_med_rw@spectra)
-Data$Spectra_med_bl_rw <- as.data.frame(getBaseline(bc_med_rw))
-Data$Spectra_med_rw <- as.data.frame(getCorrected(bc_med_rw))
 
-par(mfrow = c(num_x,1))
-
-### calculate mean of reduced spectra
-
-Spectra_orig_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_med_orig_rw[Data$Groups==name,]))))
+if (6 %in% pretreatments) {
+  
+  # extract data from baseline object
+  Data$Spectra_med_orig_rw <- as.data.frame(getSpectra(bc_med_rw))
+  colnames(bc_med_rw@baseline) <- colnames(bc_med_rw@spectra)
+  Data$Spectra_med_bl_rw <- as.data.frame(getBaseline(bc_med_rw))
+  Data$Spectra_med_rw <- as.data.frame(getCorrected(bc_med_rw))
+  
+  par(mfrow = c(num_x,1))
+  
+  ### calculate mean of reduced spectra
+  
+  Spectra_orig_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_med_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_mean_rw) <- groups
+  Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
+  
+  ### calculate median of reduced spectra
+  
+  Spectra_orig_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_med_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_median_rw) <- groups
+  Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
+  
+  ### calculate mean of baseline
+  
+  Spectra_med_mean_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_med_mean_bl_rw <- rbind(Spectra_med_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_med_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_med_mean_bl_rw) <- groups
+  Data$Spectra_med_mean_bl_rw <- Spectra_med_mean_bl_rw
+  
+  
+  ### calculate median of baseline
+  
+  Spectra_med_median_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_med_median_bl_rw <- rbind(Spectra_med_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_med_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_med_median_bl_rw) <- groups
+  Data$Spectra_med_median_bl_rw <- Spectra_med_median_bl_rw
+  
+  
+  
+  ### combine mean of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_mean_rw <- data.frame()
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_med_mean_bl_rw)
+  
+  # plot mean of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Mean of original spectra and calculated baseline with Median Window, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### combine median of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_med_rw <- data.frame()
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_med_median_bl_rw)
+  
+  # plot median of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_med_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Median of original spectra and calculated baseline with Median Window, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  
+  ### calculate mean of corrected reduced spectra
+  
+  Spectra_med_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_med_mean_rw <- rbind(Spectra_med_mean_rw, t(colMeans(as.matrix(Data$Spectra_med_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_med_mean_rw) <- groups
+  Data$Spectra_med_mean_rw <- Spectra_med_mean_rw
+  
+  # plot mean of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_med_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (mean) corrected with Median Window, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_med_mean_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### calculate median of corrected reduced spectra
+  
+  Spectra_med_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_med_median_rw <- rbind(Spectra_med_median_rw, t(colMedians(as.matrix(Data$Spectra_med_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_med_median_rw) <- groups
+  Data$Spectra_med_median_rw <- Spectra_med_median_rw
+  
+  # plot median of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_med_median_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (median) corrected with Median Window, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_med_median_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  par(mfrow = c(1,1))
+  
 }
-rownames(Spectra_orig_mean_rw) <- groups
-Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
 
-### calculate median of reduced spectra
-
-Spectra_orig_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_med_orig_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_orig_median_rw) <- groups
-Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
-
-### calculate mean of baseline
-
-Spectra_med_mean_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_med_mean_bl_rw <- rbind(Spectra_med_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_med_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_med_mean_bl_rw) <- groups
-Data$Spectra_med_mean_bl_rw <- Spectra_med_mean_bl_rw
-
-
-### calculate median of baseline
-
-Spectra_med_median_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_med_median_bl_rw <- rbind(Spectra_med_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_med_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_med_median_bl_rw) <- groups
-Data$Spectra_med_median_bl_rw <- Spectra_med_median_bl_rw
-
-
-
-### combine mean of reduced spectra and baseline
-Data$Spectra_orig_and_bl_mean_rw <- data.frame()
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_med_mean_bl_rw)
-
-# plot mean of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Mean of original spectra and calculated baseline with Median Window, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### combine median of reduced spectra and baseline
-Data$Spectra_orig_and_bl_med_rw <- data.frame()
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_med_median_bl_rw)
-
-# plot median of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_med_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Median of original spectra and calculated baseline with Median Window, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-
-### calculate mean of corrected reduced spectra
-
-Spectra_med_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_med_mean_rw <- rbind(Spectra_med_mean_rw, t(colMeans(as.matrix(Data$Spectra_med_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_med_mean_rw) <- groups
-Data$Spectra_med_mean_rw <- Spectra_med_mean_rw
-
-# plot mean of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_med_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (mean) corrected with Median Window, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_med_mean_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### calculate median of corrected reduced spectra
-
-Spectra_med_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_med_median_rw <- rbind(Spectra_med_median_rw, t(colMedians(as.matrix(Data$Spectra_med_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_med_median_rw) <- groups
-Data$Spectra_med_median_rw <- Spectra_med_median_rw
-
-# plot median of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_med_median_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (median) corrected with Median Window, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_med_median_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-par(mfrow = c(1,1))
 ```
 
 ### Median window with reduced wavenumber range and excluded area
@@ -1769,7 +1841,7 @@ YOUR TEXT HERE ...
 ~~~
 ```{r MedWin_2_par}
 # Median Window - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA
-if (remove_area == T) {
+if ((remove_area == T) & (6 %in% pretreatments)) {
   
   # adjust parameters here:
   bc_med_area <- baseline(spectra = as.matrix(Data$Spectra_area), 
@@ -1780,7 +1852,7 @@ if (remove_area == T) {
 
 ```{r MedWin_2, echo=FALSE, message=FALSE, warning=FALSE}
 # Median Window - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA MEAN AND MEDIAN
-if (remove_area == T) {    
+if ((remove_area == T) & (6 %in% pretreatments)) {    
   # extract data from baseline object
   Data$Spectra_med_orig_area <- as.data.frame(getSpectra(bc_med_area))
   colnames(bc_med_area@baseline) <- colnames(bc_med_area@spectra)
@@ -1938,159 +2010,170 @@ YOUR TEXT HERE ...
 ```{r ModPolyFit_1_par}
 # Modified Polynomial Fitting - REDUCED WAVENUMBER SPECTRA
 
-# adjust parameters here:
-bc_mod_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
-                      method = "modpolyfit", 
-                      deg = 4)         # Degree of polynomial
+if (7 %in% pretreatments) {
+  
+  # adjust parameters here:
+  bc_mod_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
+                        method = "modpolyfit", 
+                        deg = 4)         # Degree of polynomial
+  
+}
+
 ```
 
 ```{r ModPolyFit_1, echo=FALSE, message=FALSE, warning=FALSE}
 # Modified Polynomial Fitting - REDUCED WAVENUMBER SPECTRA MEAN AND MEDIAN 
-# extract data from baseline object
-Data$Spectra_mod_orig_rw <- as.data.frame(getSpectra(bc_mod_rw))
-colnames(bc_mod_rw@baseline) <- colnames(bc_mod_rw@spectra)
-Data$Spectra_mod_bl_rw <- as.data.frame(getBaseline(bc_mod_rw))
-Data$Spectra_mod_rw <- as.data.frame(getCorrected(bc_mod_rw))
 
-par(mfrow = c(num_x,1))
-
-### calculate mean of reduced spectra
-
-Spectra_orig_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_mod_orig_rw[Data$Groups==name,]))))
+if (7 %in% pretreatments) {
+  
+  # extract data from baseline object
+  Data$Spectra_mod_orig_rw <- as.data.frame(getSpectra(bc_mod_rw))
+  colnames(bc_mod_rw@baseline) <- colnames(bc_mod_rw@spectra)
+  Data$Spectra_mod_bl_rw <- as.data.frame(getBaseline(bc_mod_rw))
+  Data$Spectra_mod_rw <- as.data.frame(getCorrected(bc_mod_rw))
+  
+  par(mfrow = c(num_x,1))
+  
+  ### calculate mean of reduced spectra
+  
+  Spectra_orig_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_mod_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_mean_rw) <- groups
+  Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
+  
+  ### calculate median of reduced spectra
+  
+  Spectra_orig_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_mod_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_median_rw) <- groups
+  Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
+  
+  ### calculate mean of baseline
+  
+  Spectra_mod_mean_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_mod_mean_bl_rw <- rbind(Spectra_mod_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_mod_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_mod_mean_bl_rw) <- groups
+  Data$Spectra_mod_mean_bl_rw <- Spectra_mod_mean_bl_rw
+  
+  
+  ### calculate median of baseline
+  
+  Spectra_mod_median_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_mod_median_bl_rw <- rbind(Spectra_mod_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_mod_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_mod_median_bl_rw) <- groups
+  Data$Spectra_mod_median_bl_rw <- Spectra_mod_median_bl_rw
+  
+  
+  
+  ### combine mean of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_mean_rw <- data.frame()
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_mod_mean_bl_rw)
+  
+  # plot mean of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Mean of original spectra and calculated baseline with Modified Polynomial Fitting, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### combine median of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_med_rw <- data.frame()
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_mod_median_bl_rw)
+  
+  # plot median of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_med_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Median of original spectra and calculated baseline with Modified Polynomial Fitting, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  
+  ### calculate mean of corrected reduced spectra
+  
+  Spectra_mod_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_mod_mean_rw <- rbind(Spectra_mod_mean_rw, t(colMeans(as.matrix(Data$Spectra_mod_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_mod_mean_rw) <- groups
+  Data$Spectra_mod_mean_rw <- Spectra_mod_mean_rw
+  
+  # plot mean of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_mod_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (mean) corrected with Modified Polynomial Fitting, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_mod_mean_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### calculate median of corrected reduced spectra
+  
+  Spectra_mod_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_mod_median_rw <- rbind(Spectra_mod_median_rw, t(colMedians(as.matrix(Data$Spectra_mod_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_mod_median_rw) <- groups
+  Data$Spectra_mod_median_rw <- Spectra_mod_median_rw
+  
+  # plot median of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_mod_median_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (median) corrected with Modified Polynomial Fitting, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_mod_median_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  par(mfrow = c(1,1))
+  
 }
-rownames(Spectra_orig_mean_rw) <- groups
-Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
 
-### calculate median of reduced spectra
-
-Spectra_orig_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_mod_orig_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_orig_median_rw) <- groups
-Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
-
-### calculate mean of baseline
-
-Spectra_mod_mean_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_mod_mean_bl_rw <- rbind(Spectra_mod_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_mod_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_mod_mean_bl_rw) <- groups
-Data$Spectra_mod_mean_bl_rw <- Spectra_mod_mean_bl_rw
-
-
-### calculate median of baseline
-
-Spectra_mod_median_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_mod_median_bl_rw <- rbind(Spectra_mod_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_mod_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_mod_median_bl_rw) <- groups
-Data$Spectra_mod_median_bl_rw <- Spectra_mod_median_bl_rw
-
-
-
-### combine mean of reduced spectra and baseline
-Data$Spectra_orig_and_bl_mean_rw <- data.frame()
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_mod_mean_bl_rw)
-
-# plot mean of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Mean of original spectra and calculated baseline with Modified Polynomial Fitting, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### combine median of reduced spectra and baseline
-Data$Spectra_orig_and_bl_med_rw <- data.frame()
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_mod_median_bl_rw)
-
-# plot median of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_med_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Median of original spectra and calculated baseline with Modified Polynomial Fitting, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-
-### calculate mean of corrected reduced spectra
-
-Spectra_mod_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_mod_mean_rw <- rbind(Spectra_mod_mean_rw, t(colMeans(as.matrix(Data$Spectra_mod_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_mod_mean_rw) <- groups
-Data$Spectra_mod_mean_rw <- Spectra_mod_mean_rw
-
-# plot mean of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_mod_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (mean) corrected with Modified Polynomial Fitting, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_mod_mean_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### calculate median of corrected reduced spectra
-
-Spectra_mod_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_mod_median_rw <- rbind(Spectra_mod_median_rw, t(colMedians(as.matrix(Data$Spectra_mod_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_mod_median_rw) <- groups
-Data$Spectra_mod_median_rw <- Spectra_mod_median_rw
-
-# plot median of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_mod_median_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (median) corrected with Modified Polynomial Fitting, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_mod_median_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-par(mfrow = c(1,1))
 ```
 
 ### Modified Polynomial Fitting with reduced wavenumber range and excluded area
@@ -2099,7 +2182,7 @@ YOUR TEXT HERE ...
 ~~~
 ```{r ModPolyFit_2_par}
 # Modified Polynomial Fitting - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA
-if (remove_area == T) {
+if ((remove_area == T) & (7 %in% pretreatments)) {
   
   # adjust parameters here:
   bc_mod_area <- baseline(spectra = as.matrix(Data$Spectra_area), 
@@ -2110,7 +2193,7 @@ if (remove_area == T) {
 
 ```{r ModPolyFit_2, echo=FALSE, message=FALSE, warning=FALSE}
 # Modified Polynomial Fitting - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA MEAN AND MEDIAN
-if (remove_area == T) {  
+if ((remove_area == T) & (7 %in% pretreatments)) {  
   # extract data from baseline object
   Data$Spectra_mod_orig_area <- as.data.frame(getSpectra(bc_mod_area))
   colnames(bc_mod_area@baseline) <- colnames(bc_mod_area@spectra)
@@ -2267,24 +2350,25 @@ YOUR TEXT HERE ...
 ~~~
 ```{r SimPeak_1_par}
 # Simultaneous Peak Detection and Baseline Correction - REDUCED WAVENUMBER SPECTRA
-options(warn=-1) # ...this method delivers warnings with some data 
 
-# adjust parameters here (default 60 60 120 120):
-bc_pea_rw <- tryCatch({
-  baseline(spectra = as.matrix(Data$Spectra_min_max), 
-           method = "peakDetection", 
-           left=60,         # Smallest window size for peak widths
-           right=60,        # Largest window size for peak widths
-           lwin=120,        # Smallest window size for minimums and medians in peak removed spectra
-           rwin=120)},      # Largest window size for minimums and medians in peak removed spectra
-  error = function(e){
-    print("Simultaneous Peak Detection and Baseline Correction failed.")
-    return(NA)
-  })
+if (8 %in% pretreatments) {
+  
+  options(warn=-1) # ...this method delivers warnings with some data 
+  
+  # adjust parameters here (default 60 60 120 120):
+  bc_pea_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
+                        method = "peakDetection", 
+                        left=60,         # Smallest window size for peak widths
+                        right=60,        # Largest window size for peak widths
+                        lwin=120,        # Smallest window size for minimums and medians in peak removed spectra
+                        rwin=120)        # Largest window size for minimums and medians in peak removed spectra
+  
+}
+
 ```
 
 ```{r SimPeak_1, echo=FALSE, message=FALSE, warning=FALSE}
-if (!(is.na(bc_pea_rw))){
+if (8 %in% pretreatments) {
   # Simultaneous Peak Detection and Baseline Correction - REDUCED WAVENUMBER SPECTRA MEAN AND MEDIAN
   # extract data from baseline object
   Data$Spectra_pea_orig_rw <- as.data.frame(getSpectra(bc_pea_rw))
@@ -2441,8 +2525,9 @@ YOUR TEXT HERE ...
 ~~~
 ```{r SimPeak_2_par}
 # Simultaneous Peak Detection and Baseline Correction - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA MEAN AND MEDIAN
-options(warn=-1) # ...this method delivers warnings with some data
-if (remove_area == T) {
+ 
+if ((remove_area == T) & (8 %in% pretreatments)) {
+  options(warn=-1) # ...this method delivers warnings with some data
   
   # adjust parameters here:
   bc_pea_area <- baseline(spectra = as.matrix(Data$Spectra_area), 
@@ -2456,7 +2541,7 @@ if (remove_area == T) {
 
 ```{r SimPeak_2, echo=FALSE, message=FALSE, warning=FALSE}
 # Simultaneous Peak Detection and Baseline Correction - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA MEAN AND MEDIAN
-if (remove_area == T) {  
+if ((remove_area == T) & (8 %in% pretreatments)) {  
   # extract data from baseline object
   Data$Spectra_pea_orig_area <- as.data.frame(getSpectra(bc_pea_area))
   colnames(bc_pea_area@baseline) <- colnames(bc_pea_area@spectra)
@@ -2604,8 +2689,9 @@ if (remove_area == T) {
          bty = "n")
   
   par(mfrow = c(1,1))
+  options(warn=0)
 }
-options(warn=0)
+
 ```
 
 ### Robust Baseline Estimation with reduced wavenumber range
@@ -2615,160 +2701,171 @@ YOUR TEXT HERE ...
 ```{r RBE_1_par}
 # Robust Baseline Estimation - REDUCED WAVENUMBER SPECTRA
 
-# adjust parameters here:
-bc_rbe_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
-                      method = "rfbaseline", 
-                      span=NULL,       # Amount of smoothing (by fraction of points)
-                      NoXP=100)        # Amount of smoothing (by number of points)
+if (9 %in% pretreatments) {
+  
+  # adjust parameters here:
+  bc_rbe_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
+                        method = "rfbaseline", 
+                        span=NULL,       # Amount of smoothing (by fraction of points)
+                        NoXP=100)        # Amount of smoothing (by number of points)
+  
+}
+
 ```
 
 ```{r RBE_1, echo=FALSE, message=FALSE, warning=FALSE}
 # Robust Baseline Estimation - REDUCED WAVENUMBER SPECTRA MEAN AND MEDIAN
-# extract data from baseline object
-Data$Spectra_rbe_orig_rw <- as.data.frame(getSpectra(bc_rbe_rw))
-colnames(bc_rbe_rw@baseline) <- colnames(bc_rbe_rw@spectra)
-Data$Spectra_rbe_bl_rw <- as.data.frame(getBaseline(bc_rbe_rw))
-Data$Spectra_rbe_rw <- as.data.frame(getCorrected(bc_rbe_rw))
 
-par(mfrow = c(num_x,1))
-
-### calculate mean of reduced spectra
-
-Spectra_orig_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_rbe_orig_rw[Data$Groups==name,]))))
+if (9 %in% pretreatments) {
+  
+  # extract data from baseline object
+  Data$Spectra_rbe_orig_rw <- as.data.frame(getSpectra(bc_rbe_rw))
+  colnames(bc_rbe_rw@baseline) <- colnames(bc_rbe_rw@spectra)
+  Data$Spectra_rbe_bl_rw <- as.data.frame(getBaseline(bc_rbe_rw))
+  Data$Spectra_rbe_rw <- as.data.frame(getCorrected(bc_rbe_rw))
+  
+  par(mfrow = c(num_x,1))
+  
+  ### calculate mean of reduced spectra
+  
+  Spectra_orig_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_rbe_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_mean_rw) <- groups
+  Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
+  
+  ### calculate median of reduced spectra
+  
+  Spectra_orig_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_rbe_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_median_rw) <- groups
+  Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
+  
+  ### calculate mean of baseline
+  
+  Spectra_rbe_mean_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_rbe_mean_bl_rw <- rbind(Spectra_rbe_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_rbe_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_rbe_mean_bl_rw) <- groups
+  Data$Spectra_rbe_mean_bl_rw <- Spectra_rbe_mean_bl_rw
+  
+  
+  ### calculate median of baseline
+  
+  Spectra_rbe_median_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_rbe_median_bl_rw <- rbind(Spectra_rbe_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_rbe_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_rbe_median_bl_rw) <- groups
+  Data$Spectra_rbe_median_bl_rw <- Spectra_rbe_median_bl_rw
+  
+  
+  
+  ### combine mean of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_mean_rw <- data.frame()
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_rbe_mean_bl_rw)
+  
+  # plot mean of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Mean of original spectra and calculated baseline with Robust Baseline Estimation, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### combine median of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_med_rw <- data.frame()
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_rbe_median_bl_rw)
+  
+  # plot median of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_med_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Median of original spectra and calculated baseline with Robust Baseline Estimation, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  
+  ### calculate mean of corrected reduced spectra
+  
+  Spectra_rbe_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_rbe_mean_rw <- rbind(Spectra_rbe_mean_rw, t(colMeans(as.matrix(Data$Spectra_rbe_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_rbe_mean_rw) <- groups
+  Data$Spectra_rbe_mean_rw <- Spectra_rbe_mean_rw
+  
+  # plot mean of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_rbe_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (mean) corrected with Robust Baseline Estimation, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_rbe_mean_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### calculate median of corrected reduced spectra
+  
+  Spectra_rbe_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_rbe_median_rw <- rbind(Spectra_rbe_median_rw, t(colMedians(as.matrix(Data$Spectra_rbe_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_rbe_median_rw) <- groups
+  Data$Spectra_rbe_median_rw <- Spectra_rbe_median_rw
+  
+  # plot median of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_rbe_median_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (median) corrected with Robust Baseline Estimation, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_rbe_median_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  par(mfrow = c(1,1))
+  
 }
-rownames(Spectra_orig_mean_rw) <- groups
-Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
 
-### calculate median of reduced spectra
-
-Spectra_orig_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_rbe_orig_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_orig_median_rw) <- groups
-Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
-
-### calculate mean of baseline
-
-Spectra_rbe_mean_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_rbe_mean_bl_rw <- rbind(Spectra_rbe_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_rbe_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_rbe_mean_bl_rw) <- groups
-Data$Spectra_rbe_mean_bl_rw <- Spectra_rbe_mean_bl_rw
-
-
-### calculate median of baseline
-
-Spectra_rbe_median_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_rbe_median_bl_rw <- rbind(Spectra_rbe_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_rbe_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_rbe_median_bl_rw) <- groups
-Data$Spectra_rbe_median_bl_rw <- Spectra_rbe_median_bl_rw
-
-
-
-### combine mean of reduced spectra and baseline
-Data$Spectra_orig_and_bl_mean_rw <- data.frame()
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_rbe_mean_bl_rw)
-
-# plot mean of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Mean of original spectra and calculated baseline with Robust Baseline Estimation, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### combine median of reduced spectra and baseline
-Data$Spectra_orig_and_bl_med_rw <- data.frame()
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_rbe_median_bl_rw)
-
-# plot median of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_med_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Median of original spectra and calculated baseline with Robust Baseline Estimation, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-
-### calculate mean of corrected reduced spectra
-
-Spectra_rbe_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_rbe_mean_rw <- rbind(Spectra_rbe_mean_rw, t(colMeans(as.matrix(Data$Spectra_rbe_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_rbe_mean_rw) <- groups
-Data$Spectra_rbe_mean_rw <- Spectra_rbe_mean_rw
-
-# plot mean of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_rbe_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (mean) corrected with Robust Baseline Estimation, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_rbe_mean_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### calculate median of corrected reduced spectra
-
-Spectra_rbe_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_rbe_median_rw <- rbind(Spectra_rbe_median_rw, t(colMedians(as.matrix(Data$Spectra_rbe_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_rbe_median_rw) <- groups
-Data$Spectra_rbe_median_rw <- Spectra_rbe_median_rw
-
-# plot median of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_rbe_median_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (median) corrected with Robust Baseline Estimation, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_rbe_median_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-par(mfrow = c(1,1))
 ```
 
 ### Robust Baseline Estimation with reduced wavenumber range and excluded area
@@ -2777,7 +2874,7 @@ YOUR TEXT HERE ...
 ~~~
 ```{r RBE_2_par}
 # Robust Baseline Estimation - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA
-if (remove_area == T) {
+if ((remove_area == T) & (9 %in% pretreatments)) {
   
   # adjust parameters here:
   bc_rbe_area <- baseline(spectra = as.matrix(Data$Spectra_area), 
@@ -2789,7 +2886,7 @@ if (remove_area == T) {
 
 ```{r RBE_2, echo=FALSE, message=FALSE, warning=FALSE}
 # Robust Baseline Estimation - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA MEAN AND MEDIAN 
-if (remove_area == T) {
+if ((remove_area == T) & (9 %in% pretreatments)) {
     # extract data from baseline object
   Data$Spectra_rbe_orig_area <- as.data.frame(getSpectra(bc_rbe_area))
   colnames(bc_rbe_area@baseline) <- colnames(bc_rbe_area@spectra)
@@ -2947,160 +3044,171 @@ YOUR TEXT HERE ...
 ```{r Rol_1_par}
 # Rolling ball - REDUCED WAVENUMBER SPECTRA
 
-# adjust parameters here:
-bc_rol_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
-                      method = "rollingBall", 
-                      wm=30,           # Width of local window for minimization/maximization
-                      ws=30)           # Width of local window for smoothing
+if (10 %in% pretreatments) {
+  
+  # adjust parameters here:
+  bc_rol_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
+                        method = "rollingBall", 
+                        wm=30,           # Width of local window for minimization/maximization
+                        ws=30)           # Width of local window for smoothing
+  
+}
+
 ```
 
 ```{r Rol_1, echo=FALSE, message=FALSE, warning=FALSE}
 # Rolling ball - REDUCED WAVENUMBER SPECTRA MEAN AND MEDIAN
-# extract data from baseline object
-Data$Spectra_rol_orig_rw <- as.data.frame(getSpectra(bc_rol_rw))
-colnames(bc_rol_rw@baseline) <- colnames(bc_rol_rw@spectra)
-Data$Spectra_rol_bl_rw <- as.data.frame(getBaseline(bc_rol_rw))
-Data$Spectra_rol_rw <- as.data.frame(getCorrected(bc_rol_rw))
 
-par(mfrow = c(num_x,1))
-
-### calculate mean of reduced spectra
-
-Spectra_orig_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_rol_orig_rw[Data$Groups==name,]))))
+if (10 %in% pretreatments) {
+  
+  # extract data from baseline object
+  Data$Spectra_rol_orig_rw <- as.data.frame(getSpectra(bc_rol_rw))
+  colnames(bc_rol_rw@baseline) <- colnames(bc_rol_rw@spectra)
+  Data$Spectra_rol_bl_rw <- as.data.frame(getBaseline(bc_rol_rw))
+  Data$Spectra_rol_rw <- as.data.frame(getCorrected(bc_rol_rw))
+  
+  par(mfrow = c(num_x,1))
+  
+  ### calculate mean of reduced spectra
+  
+  Spectra_orig_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_mean_rw <- rbind(Spectra_orig_mean_rw, t(colMeans(as.matrix(Data$Spectra_rol_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_mean_rw) <- groups
+  Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
+  
+  ### calculate median of reduced spectra
+  
+  Spectra_orig_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_rol_orig_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_orig_median_rw) <- groups
+  Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
+  
+  ### calculate mean of baseline
+  
+  Spectra_rol_mean_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_rol_mean_bl_rw <- rbind(Spectra_rol_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_rol_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_rol_mean_bl_rw) <- groups
+  Data$Spectra_rol_mean_bl_rw <- Spectra_rol_mean_bl_rw
+  
+  
+  ### calculate median of baseline
+  
+  Spectra_rol_median_bl_rw <- data.frame()
+  for (name in groups) {
+    Spectra_rol_median_bl_rw <- rbind(Spectra_rol_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_rol_bl_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_rol_median_bl_rw) <- groups
+  Data$Spectra_rol_median_bl_rw <- Spectra_rol_median_bl_rw
+  
+  
+  
+  ### combine mean of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_mean_rw <- data.frame()
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
+  Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_rol_mean_bl_rw)
+  
+  # plot mean of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Mean of original spectra and calculated baseline with Rolling ball, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### combine median of reduced spectra and baseline
+  Data$Spectra_orig_and_bl_med_rw <- data.frame()
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
+  Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_rol_median_bl_rw)
+  
+  # plot median of reduced spectra and baseline
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_orig_and_bl_med_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Median of original spectra and calculated baseline with Rolling ball, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(c(groups,groups)))
+  
+  legend(Legend_pos,
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  
+  ### calculate mean of corrected reduced spectra
+  
+  Spectra_rol_mean_rw <- data.frame()
+  for (name in groups) {
+    Spectra_rol_mean_rw <- rbind(Spectra_rol_mean_rw, t(colMeans(as.matrix(Data$Spectra_rol_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_rol_mean_rw) <- groups
+  Data$Spectra_rol_mean_rw <- Spectra_rol_mean_rw
+  
+  # plot mean of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_rol_mean_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (mean) corrected with Rolling ball, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_rol_mean_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  ### calculate median of corrected reduced spectra
+  
+  Spectra_rol_median_rw <- data.frame()
+  for (name in groups) {
+    Spectra_rol_median_rw <- rbind(Spectra_rol_median_rw, t(colMedians(as.matrix(Data$Spectra_rol_rw[Data$Groups==name,]))))
+  }
+  rownames(Spectra_rol_median_rw) <- groups
+  Data$Spectra_rol_median_rw <- Spectra_rol_median_rw
+  
+  # plot median of corrected reduced spectra
+  plot.spectra(Liste = Data,
+               Wellenzahl = Data$Wavenumber_min_max,
+               Spektren = "Spectra_rol_median_rw",
+               Bereich = c(1:length(Data$Wavenumber_min_max)),
+               area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
+               main = paste("Spectra (median) corrected with Rolling ball, 
+                            reduced range from",max_range,"to",min_range),
+               Code = as.factor(rownames(Data$Spectra_rol_median_rw)))
+  
+  legend(Legend_pos, 
+         legend = legend, 
+         pch = 16, 
+         col = unique(Data$Groups), 
+         inset = 0.05, 
+         bty = "n")
+  
+  par(mfrow = c(1,1))
+  
 }
-rownames(Spectra_orig_mean_rw) <- groups
-Data$Spectra_orig_mean_rw <- Spectra_orig_mean_rw
 
-### calculate median of reduced spectra
-
-Spectra_orig_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_orig_median_rw <- rbind(Spectra_orig_median_rw, t(colMedians(as.matrix(Data$Spectra_rol_orig_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_orig_median_rw) <- groups
-Data$Spectra_orig_median_rw <- Spectra_orig_median_rw
-
-### calculate mean of baseline
-
-Spectra_rol_mean_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_rol_mean_bl_rw <- rbind(Spectra_rol_mean_bl_rw, t(colMeans(as.matrix(Data$Spectra_rol_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_rol_mean_bl_rw) <- groups
-Data$Spectra_rol_mean_bl_rw <- Spectra_rol_mean_bl_rw
-
-
-### calculate median of baseline
-
-Spectra_rol_median_bl_rw <- data.frame()
-for (name in groups) {
-  Spectra_rol_median_bl_rw <- rbind(Spectra_rol_median_bl_rw, t(colMedians(as.matrix(Data$Spectra_rol_bl_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_rol_median_bl_rw) <- groups
-Data$Spectra_rol_median_bl_rw <- Spectra_rol_median_bl_rw
-
-
-
-### combine mean of reduced spectra and baseline
-Data$Spectra_orig_and_bl_mean_rw <- data.frame()
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_orig_mean_rw)
-Data$Spectra_orig_and_bl_mean_rw <- rbind(Data$Spectra_orig_and_bl_mean_rw,Data$Spectra_rol_mean_bl_rw)
-
-# plot mean of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Mean of original spectra and calculated baseline with Rolling ball, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### combine median of reduced spectra and baseline
-Data$Spectra_orig_and_bl_med_rw <- data.frame()
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_orig_median_rw)
-Data$Spectra_orig_and_bl_med_rw <- rbind(Data$Spectra_orig_and_bl_med_rw,Data$Spectra_rol_median_bl_rw)
-
-# plot median of reduced spectra and baseline
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_orig_and_bl_med_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Median of original spectra and calculated baseline with Rolling ball, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(c(groups,groups)))
-
-legend(Legend_pos,
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-
-### calculate mean of corrected reduced spectra
-
-Spectra_rol_mean_rw <- data.frame()
-for (name in groups) {
-  Spectra_rol_mean_rw <- rbind(Spectra_rol_mean_rw, t(colMeans(as.matrix(Data$Spectra_rol_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_rol_mean_rw) <- groups
-Data$Spectra_rol_mean_rw <- Spectra_rol_mean_rw
-
-# plot mean of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_rol_mean_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (mean) corrected with Rolling ball, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_rol_mean_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-### calculate median of corrected reduced spectra
-
-Spectra_rol_median_rw <- data.frame()
-for (name in groups) {
-  Spectra_rol_median_rw <- rbind(Spectra_rol_median_rw, t(colMedians(as.matrix(Data$Spectra_rol_rw[Data$Groups==name,]))))
-}
-rownames(Spectra_rol_median_rw) <- groups
-Data$Spectra_rol_median_rw <- Spectra_rol_median_rw
-
-# plot median of corrected reduced spectra
-plot.spectra(Liste = Data,
-             Wellenzahl = Data$Wavenumber_min_max,
-             Spektren = "Spectra_rol_median_rw",
-             Bereich = c(1:length(Data$Wavenumber_min_max)),
-             area = c(max(Data$Wavenumber_min_max),min(Data$Wavenumber_min_max)),
-             main = paste("Spectra (median) corrected with Rolling ball, 
-                          reduced range from",max_range,"to",min_range),
-             Code = as.factor(rownames(Data$Spectra_rol_median_rw)))
-
-legend(Legend_pos, 
-       legend = legend, 
-       pch = 16, 
-       col = unique(Data$Groups), 
-       inset = 0.05, 
-       bty = "n")
-
-par(mfrow = c(1,1))
 ```
 
 ### Rolling ball with reduced wavenumber range and excluded area
@@ -3109,7 +3217,7 @@ YOUR TEXT HERE ...
 
 ```{r Rol_2_par}
 # Rolling ball - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA
-if (remove_area == T) {
+if ((remove_area == T) & (10 %in% pretreatments)) {
   
   # adjust parameters here:
   bc_rol_area <- baseline(spectra = as.matrix(Data$Spectra_area), 
@@ -3121,7 +3229,7 @@ if (remove_area == T) {
 
 ```{r Rol_2, echo=FALSE, message=FALSE, warning=FALSE}
 # Rolling ball - REDUCED WAVENUMBER/EXCLUDED AREA SPECTRA MEAN AND MEDIAN 
-if (remove_area == T) {
+if ((remove_area == T) & (10 %in% pretreatments)) {
   # extract data from baseline object
   Data$Spectra_rol_orig_area <- as.data.frame(getSpectra(bc_rol_area))
   colnames(bc_rol_area@baseline) <- colnames(bc_rol_area@spectra)
@@ -3278,6 +3386,8 @@ YOUR TEXT HERE ...
 ~~~
 ```{r PCA_par}
 # adjust PCA parameters here:
+vector_normalize <- T # Should spectra be normalized to a vector of length 1?
+
 rank <- 10      # optionally, a number specifying the maximal rank, i.e., maximal number of principal components to be used
 center <- TRUE  # a logical value indicating whether the variables should be shifted to be zero centered
 scale <- FALSE   # a logical value indicating whether the variables should be scaled
@@ -3298,9 +3408,9 @@ select_outlier <- T                 # select outlier during PCA: yes = T |no = F
 
 # fill the list with the number of the selected outliers:
 outl_min_max <- list(c(), # 1:"SNV"
-                     c(), # 2:"Detrend"
+                     c(1,5), # 2:"Detrend"
                      c(), # 3:"Asymmetric Least Squares"
-                     c(), # 4:"FillPeaks"
+                     c(1,5), # 4:"FillPeaks"
                      c(), # 5:"Iterative Restricted Least Squares" 
                      c(), # 6:"Median window"
                      c(), # 7:"Modified polynomial fitting"
@@ -3334,127 +3444,133 @@ YOUR TEXT HERE ...
 Type = Type_rw
 Sample <- c(1:length(Data$Wavenumber_min_max))
 
-for (Stats in 1:length(Type)) {
-  PCA <- tryCatch({
-    prcomp(Data[[Type[Stats]]][!is.na(Data$Groups),Sample],
+for (Stats in pretreatments) {
+  print("---------")
+  print(Names[Stats])
+  
+  pca.data <- Data[[Type[Stats]]][!is.na(Data$Groups),Sample]
+  
+  if (vector_normalize == T) {
+    
+    # Normalization
+    norm.factors <- apply(pca.data, 1, function(x){sqrt(sum(x^2))})
+    pca.data <- sweep(pca.data, 1, norm.factors, "/")
+    
+  }
+  
+  PCA <- prcomp(pca.data,
                 retx = retx,
                 center = center,
                 rank. = rank,
                 tol = tol,
                 scale. = scale)
-    },
-    error = function(e){
-      return(NA)
-    }
-  )
   
-  if (!(is.na(PCA))){
-    # remove "NAs" for correct colours in the plot
-    PCA$Groups <- Data$Groups[!is.na(Data$Groups)]
-    
-    print(summary(PCA))
-    
-    Data[[paste("Var_", Type[Stats])]] <- PCA$sdev^2/sum(PCA$sdev^2)
-    
-    plot(x = 1:PC, 
-         y = cumsum(Data[[paste("Var_", Type[Stats])]][1:PC]*100),
-         type = "b", 
-         main = paste("Method: ",Names[Stats], sep=""),
-         xlab = "Number of Principal Components",
-         ylab = "Explained Variance [%]",
-         col = "dimgrey", 
-         pch = 21, 
-         bg = "darkgrey",
-         font = 2, 
-         font.lab = 2,
-         lab = c(10,20,20),
-         xaxt = "n")
-    
-    axis(1,xaxp=c(1,PC,PC-1))
-    
-    grid(lwd = 0.8)
-    
-    pairs(PCA$x[,1:PCs],
-          col = Data$Groups,
-          main = paste("Method: ",Names[Stats], sep=""),
-          pch = 19)
-    
-    par(xpd = T) 
-    
-    legend("bottomright", 
-           legend = legend, 
-           pch = 19, 
-           col = unique(Data$Groups), 
-           inset = 0.05,
-           cex = 0.7,
-           horiz = T, 
-           bty = "n")
-    
-    par(xpd = F)
-    
-    plot(x = PCA$x[,x_PC], 
-         y = PCA$x[,y_PC],
-         xlab = paste("Scores of","PC" ,x_PC, "[",round(Data[[paste("Var_", Type[Stats])]][x_PC]*100,1),"%]", sep = " "),
-         ylab = paste("Scores of","PC" ,y_PC, "[",round(Data[[paste("Var_", Type[Stats])]][y_PC]*100,1),"%]", sep = " "),
-         main = paste("Method: ",Names[Stats], sep=""),
-         col = Data$Groups[!is.na(Data$Groups)], 
+  
+  # remove "NAs" for correct colours in the plot
+  PCA$Groups <- Data$Groups[!is.na(Data$Groups)]
+  
+  print(summary(PCA))
+  
+  Data[[paste("Var_", Type[Stats])]] <- PCA$sdev^2/sum(PCA$sdev^2)
+  
+  plot(x = 1:PC, 
+       y = cumsum(Data[[paste("Var_", Type[Stats])]][1:PC]*100),
+       type = "b", 
+       main = paste("Method: ",Names[Stats], sep=""),
+       xlab = "Number of Principal Components",
+       ylab = "Explained Variance [%]",
+       col = "dimgrey", 
+       pch = 21, 
+       bg = "darkgrey",
+       font = 2, 
+       font.lab = 2,
+       lab = c(10,20,20),
+       xaxt = "n")
+  
+  axis(1,xaxp=c(1,PC,PC-1))
+  
+  grid(lwd = 0.8)
+  
+  pairs(PCA$x[,1:PCs],
+        col = Data$Groups,
+        main = paste("Method: ",Names[Stats], sep=""),
+        pch = 19)
+  
+  par(xpd = T) 
+  
+  legend("bottomright", 
+         legend = legend, 
          pch = 19, 
-         font.lab = 2)
+         col = unique(Data$Groups), 
+         inset = 0.05,
+         cex = 0.7,
+         horiz = T, 
+         bty = "n")
+  
+  par(xpd = F)
+  
+  plot(x = PCA$x[,x_PC], 
+       y = PCA$x[,y_PC],
+       xlab = paste("Scores of","PC" ,x_PC, "[",round(Data[[paste("Var_", Type[Stats])]][x_PC]*100,1),"%]", sep = " "),
+       ylab = paste("Scores of","PC" ,y_PC, "[",round(Data[[paste("Var_", Type[Stats])]][y_PC]*100,1),"%]", sep = " "),
+       main = paste("Method: ",Names[Stats], sep=""),
+       col = Data$Groups[!is.na(Data$Groups)], 
+       pch = 19, 
+       font.lab = 2)
+  
+  grid(lwd = 0.8)
+  
+  abline(h = 0, v = 0)
+  
+  legend("bottomleft", 
+         legend = legend, 
+         pch = 20, 
+         col = unique(Data$Groups[!is.na(Data$Groups)]), 
+         inset = 0.01,
+         bty = "n")
+  
+  # remove outlier
+  Data[paste(Type[Stats],"_outl",sep="")] <- Data[paste(Type[Stats])]
+  Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]] <- Data$Groups
+  
+  if(select_outlier == T){
+    #print(paste(Stats, "Select outlier: ESC to exit"))
+    outlier = outl_min_max[[Stats]]
+    print(outlier)
+    Data[[paste(Type[Stats],"_outl",sep="")]][outlier,] = NA
+    Data[[paste(Type[Stats],"_outl",sep="")]][as.integer(outl_min_max[[Stats]]),] = NA
+    Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]][as.integer(outl_min_max[[Stats]])] = NA
+  }
+  
+  if (plot_loadings == T) {
     
-    grid(lwd = 0.8)
+    DataLoadings <- data.frame(WaveNum=Data$Wavenumber_min_max)
     
-    abline(h = 0, v = 0)
+    for (loadingNR in (1:loadings)) {
+      #print(paste("PC",loadingNR,sep=""))
+      DataLoadings <- cbind(DataLoadings,PCA$rotation[,loadingNR])
+      colnames(DataLoadings)[(loadingNR+1)] <- paste("PC",loadingNR,sep="")
+    }
     
-    legend("bottomleft", 
-           legend = legend, 
+    DataLoadingsRev <- DataLoadings[dim(DataLoadings)[1]:1,]
+    
+    matplot(x = DataLoadingsRev[1],
+            y = DataLoadingsRev[-1],
+            type = "l", 
+            main = paste("Loadings: ",Names[Stats], sep=""), 
+            ylab = "",
+            xlab = "Wavenumber [1/cm]",
+            xlim = c(max(DataLoadings$WaveNum),min(DataLoadings$WaveNum)),
+            xaxs = "i")
+    abline(0,0, col="black", lwd=1.5)
+    legend("topleft", 
+           legend = colnames(DataLoadings)[2:(loadings+1)], 
            pch = 20, 
-           col = unique(Data$Groups[!is.na(Data$Groups)]), 
+           col = c(1:loadings), 
            inset = 0.01,
            bty = "n")
-    
-    # remove outlier
-    Data[paste(Type[Stats],"_outl",sep="")] <- Data[paste(Type[Stats])]
-    Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]] <- Data$Groups
-    
-    if(select_outlier == T){
-      #print(paste(Stats, "Select outlier: ESC to exit"))
-      #outlier = identify( x = PCA$x[,x_PC], y = PCA$x[,y_PC])
-      #print(outlier)
-      #Data[[paste(Type[Stats],"_outl",sep="")]][outlier,] = NA
-      Data[[paste(Type[Stats],"_outl",sep="")]][as.integer(outl_min_max[[Stats]]),] = NA
-      Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]][as.integer(outl_min_max[[Stats]])] = NA
-    }
-    
-    if (plot_loadings == T) {
+    grid(lwd = 0.8)
       
-      DataLoadings <- data.frame(WaveNum=Data$Wavenumber_min_max)
-      
-      for (loadingNR in (1:loadings)) {
-        #print(paste("PC",loadingNR,sep=""))
-        DataLoadings <- cbind(DataLoadings,PCA$rotation[,loadingNR])
-        colnames(DataLoadings)[(loadingNR+1)] <- paste("PC",loadingNR,sep="")
-      }
-      
-      DataLoadingsRev <- DataLoadings[dim(DataLoadings)[1]:1,]
-      
-      matplot(x = DataLoadingsRev[1],
-              y = DataLoadingsRev[-1],
-              type = "l", 
-              main = paste("Loadings: ",Names[Stats], sep=""), 
-              ylab = "",
-              xlab = "Wavenumber [1/cm]",
-              xlim = c(max(DataLoadings$WaveNum),min(DataLoadings$WaveNum)),
-              xaxs = "i")
-      abline(0,0, col="black", lwd=1.5)
-      legend("topleft", 
-             legend = colnames(DataLoadings)[2:(loadings+1)], 
-             pch = 20, 
-             col = c(1:loadings), 
-             inset = 0.01,
-             bty = "n")
-      grid(lwd = 0.8)
-      
-    }
   }
 }
 ```
@@ -3469,8 +3585,21 @@ YOUR TEXT HERE ...
 ###################################################
 
 if (select_outlier == T) {
-  for (Stats in 1:length(Type)) {
-    PCA <- prcomp(na.omit(Data[[paste(Type[Stats],"_outl", sep="")]][!is.na(Data$Groups),Sample]),
+  for (Stats in pretreatments) {
+    print("---------")
+    print(Names[Stats])
+    
+    pca.data <- na.omit(Data[[paste(Type[Stats],"_outl", sep="")]][!is.na(Data$Groups),Sample])
+    
+    if (vector_normalize == T) {
+      
+      # Normalization
+      norm.factors <- apply(pca.data, 1, function(x){sqrt(sum(x^2))})
+      pca.data <- sweep(pca.data, 1, norm.factors, "/")
+      
+    }
+  
+    PCA <- prcomp(pca.data,
                   retx = retx,
                   center = center,
                   rank. = rank,
@@ -3591,8 +3720,21 @@ if (remove_area == T) {
   Type = Type_a
   Sample <- c(1:length(Data$Wavenumber_area))
   
-  for (Stats in 1:length(Type)) {
-    PCA <- prcomp(Data[[Type[Stats]]][!is.na(Data$Groups),Sample],
+  for (Stats in pretreatments) {
+    print("---------")
+    print(Names[Stats])
+    
+    pca.data <- Data[[Type[Stats]]][!is.na(Data$Groups),Sample]
+    
+    if (vector_normalize == T) {
+      
+      # Normalization
+      norm.factors <- apply(pca.data, 1, function(x){sqrt(sum(x^2))})
+      pca.data <- sweep(pca.data, 1, norm.factors, "/")
+      
+    }
+    
+    PCA <- prcomp(pca.data,
                   retx = retx,
                   center = center,
                   rank. = rank,
@@ -3668,9 +3810,9 @@ if (remove_area == T) {
     
     if(select_outlier == T){
       #print(paste(Stats, "Select outlier: ESC to exit"))
-      #outlier = identify( x = PCA$x[,x_PC], y = PCA$x[,y_PC])
-      #print(outlier)
-      #Data[[paste(Type[Stats],"_outl",sep="")]][outlier,] = NA
+      outlier = outl_area[Stats]
+      print(outlier)
+      Data[[paste(Type[Stats],"_outl",sep="")]][outlier,] = NA
       Data[[paste(Type[Stats],"_outl",sep="")]][as.integer(outl_area[[Stats]]),] = NA
       Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]][as.integer(outl_area[[Stats]])] = NA
     }
@@ -3720,8 +3862,21 @@ YOUR TEXT HERE ...
 if (remove_area == T) {
   
   if (select_outlier == T) {
-    for (Stats in 1:length(Type)) {
-      PCA <- prcomp(na.omit(Data[[paste(Type[Stats],"_outl", sep="")]][!is.na(Data$Groups),Sample]),
+    for (Stats in pretreatments) {
+      print("---------")
+      print(Names[Stats])
+      
+      pca.data <- na.omit(Data[[paste(Type[Stats],"_outl", sep="")]][!is.na(Data$Groups),Sample])
+      
+      if (vector_normalize == T) {
+        
+        # Normalization
+        norm.factors <- apply(pca.data, 1, function(x){sqrt(sum(x^2))})
+        pca.data <- sweep(pca.data, 1, norm.factors, "/")
+        
+      }
+      
+      PCA <- prcomp(pca.data,
                     retx = retx,
                     center = center,
                     rank. = rank,
@@ -3841,127 +3996,3 @@ end_time = format(Sys.time(), '%X')
 ```{r used time, echo=FALSE, message=TRUE, warning=FALSE}
 print(paste("Time used for analysis:", round(as.difftime(end_time, units = "mins")-as.difftime(start_time, units = "mins"),digits=2),"minutes"))
 ```
-```{r}
-##### LDA Test
-
-library(MASS)
-library(caret)
-
-data.temp <- Data[[Type[4]]] # Detrend: 2, FillPeaks: 4
-factors <- apply(data.temp, 1, function(x){sqrt(sum(x^2))})
-data.temp.norm <- sweep(data.temp, 1, factors, "/")
-
-groups <- factor(c(rep("control", 50), rep("induced", 50)))
-
-data.norm.plot <- as.data.frame(t(rbind(Data$Wavenumber_min_max, 
-                                        apply(data.temp.norm[groups == "control",], 2, mean), 
-                                        apply(data.temp.norm[groups == "induced",], 2, mean))))
-
-rownames(data.norm.plot) <- c()
-colnames(data.norm.plot) <- c("wavenumber", "control", "induced")
-
-data.norm.plot.sd <- as.data.frame(t(rbind(Data$Wavenumber_min_max, 
-                                        apply(data.temp.norm[groups == "control",], 2, sd), 
-                                        apply(data.temp.norm[groups == "induced",], 2, sd))))
-
-rownames(data.norm.plot.sd) <- c()
-colnames(data.norm.plot.sd) <- c("wavenumber", "control", "induced")
-
-data.norm.plot.low <- data.norm.plot - data.norm.plot.sd
-
-data.norm.plot.high <- data.norm.plot + data.norm.plot.sd
-
-ggplot(data=data.norm.plot, aes(x=wavenumber)) + 
-  geom_line(aes(y=control, col="control")) + 
-  geom_line(aes(y=induced, col="induced")) + 
-  geom_ribbon(aes(ymin=data.norm.plot.low$control, ymax=data.norm.plot.high$control, fill="control"), linetype=2, alpha=0.2, show.legend=F) + 
-  geom_ribbon(aes(ymin=data.norm.plot.low$induced, ymax=data.norm.plot.high$induced, fill="induced"), linetype=2, alpha=0.2, show.legend=F) +
-  coord_cartesian(expand=F) + scale_x_reverse(breaks=seq(300, 1600, 100), minor_breaks=seq(300, 1600, 50)) + ylab("intensity")
-  
-  
-
-# , rep("V", 40), rep("Z", 40)
-
-N <- nrow(data.temp.norm)
-
-# Create a random number vector
-rvec <- runif(N)
-
-# Fraction of the dataset to be used for training 
-x <- 0.5
-
-data.train <- data.temp.norm[rvec < x,]
-data.test <- data.temp.norm[rvec >= x,]
-groups.train <- groups[rvec < x]
-groups.test <- groups[rvec >= x]
-
-nrow(data.train)
-
-
-PCA <- prcomp(na.omit(data.train),
-              retx = retx,
-              center = TRUE,
-              rank = 10,
-              tol = tol,
-              scale = FALSE)
-
-summary(PCA)
-
-scores <- as.data.frame(PCA$x[,1:2])
-scores$group <- groups.train
-
-str(scores)
-
-ggplot(scores, aes(x=PC1, y=PC2, col=group)) + geom_point()
-
-loadings.PCA <- PCA$rotation
-
-loadings.plot <- as.data.frame(cbind(Data$Wavenumber_min_max, loadings.PCA))
-colnames(loadings.plot)[1] <- "wavenumber"
-
-ggplot(data=loadings.plot, aes(x=wavenumber)) + geom_line(aes(y=PC1, col="PC1")) + geom_line(aes(y=PC3, col="PC3")) + coord_cartesian(expand=FALSE) + scale_x_reverse() + geom_hline(yintercept=0)
-      
-ls(PCA)
-data.lda <- as.data.frame(PCA$x)
-
-
-
-data.lda <- cbind(groups.train, data.lda)
-
-colnames(data.lda)[1] <- "group"
-
-
-model <- lda(group~., data = data.lda, )
-model
-
-data.lda.plot <- cbind(data.lda[1], predict(model)$x)
-boxplot(LD1 ~ group, data=data.lda.plot)
-
-ggplot(data.lda.plot, aes(x=group, y=LD1, fill=group)) + geom_violin()
-
-#ggplot(data.lda, aes(LD1, LD2)) +
-#  geom_point(aes(color=group))
-
-
-loadings.LDA <- model$scaling
-loadings <- loadings.PCA %*% loadings.LDA
-
-data.loadings.plot <- as.data.frame(cbind(Data$Wavenumber_min_max, loadings))
-colnames(data.loadings.plot)[1] <- "Wavenumber"
-
-ggplot(data.loadings.plot, aes(x=Wavenumber, y=LD1)) + geom_line() +
-  coord_cartesian(expand=FALSE) + 
-  scale_x_reverse(breaks=seq(300, 1600, 100), minor_breaks=seq(300, 1600, 50)) +
-  geom_hline(yintercept = 0)
-
-data.test.matrix <- as.matrix(data.test)
-
-data.test.scores <- data.test.matrix %*% loadings.PCA
-
-groups.predict <- predict(model, as.data.frame(data.test.scores))
-groups.predict
-
-confusionMatrix(groups.predict[["class"]], groups.test, positive = "induced")
-
-```
-
