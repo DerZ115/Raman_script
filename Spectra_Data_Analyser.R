@@ -1,6 +1,6 @@
 start_time = format(Sys.time(), '%X') # get starttime of analysis
 
-### USER SETfTINGS ###
+### USER SETTINGS ###
 
 VERSION_NR <- 001                    # change for multiple analysis (only for documentation)
 
@@ -33,7 +33,7 @@ x_PC <- 1                            # PC on x-axis of score plots
 y_PC <- 2                            # PC on y-axis of score plots
 
 perform_LDA <- T                     # perform linear discriminant analysis
-repetitions <- 100                   # Number of repetitions of the cross-validation
+repetitions <- 90                   # Number of repetitions of the cross-validation
 segments.out <- 3                    # Number of segments in the outer loop
 segments.in <- 5                     # Number of segments in the inner loop
 max.PCs <- 10                        # Max number of PCs to use for LDA
@@ -59,9 +59,9 @@ pretreatments <- c(4)
 
 ### Load packages
 Packages <- c("plyr","dplyr","IDPmisc","prospectr","dendextend","baseline",
-              "pls","plotrix","knitr","ggplot2","gridExtra","ggpubr",
+              "pls","plotrix","knitr","ggplot2","gridExtra","ggpubr","ggpmisc",
               "ChemoSpec", "matrixStats", "stringr", "MASS", "caret", 
-              "ROCR", "binom", "cvAUC")
+              "ROCR", "binom", "cvAUC","ggrepel")
 
 for (p in 1:length(Packages)) {
   require(Packages[p], character.only = TRUE)
@@ -117,8 +117,8 @@ Import.data <- function(work_dir, data_folder, groups, ending) {
   }
   
   #create a list of groups, wavenumbers and spectra
-  OriginalData <- list(Wavenumber,Spectra,as.factor(groups_v))
-  names(OriginalData) <- c("Wavenumber","Spectra","Groups")
+  OriginalData <- list(Wavenumber,Spectra,as.factor(groups_v),Files)
+  names(OriginalData) <- c("Wavenumber","Spectra","Groups","Files")
   rownames(OriginalData$Spectra) <- 1:length(OriginalData$Groups)
   
   return(OriginalData)
@@ -3170,6 +3170,7 @@ for (Stats in pretreatments) {
     print(paste(Stats, "Select outlier: ESC to exit"))
     outlier = identify( x = PCA$x[,x_PC], y = PCA$x[,y_PC])
     print(outlier)
+    print(Data$Files[outlier])
     Data[[paste(Type[Stats],"_outl",sep="")]][outlier,] = NA
     Data[[paste(Type[Stats],"_outl_red_Groups",sep="")]][outlier] = NA
     #print(Data$Groups)
@@ -3592,15 +3593,24 @@ rm(PCA, pca.data)
 
 if (perform_LDA == T) {
   
-  Type = Type_rw
+  if (remove_area == TRUE) {
+    Type = Type_a
+  } else {
+    Type = Type_rw
+  }
+  
   
   for (Stats in pretreatments) {
     
-    
     #extract data
-    data.lda <- Data[[Type[Stats]]][!is.na(Data$Groups),Sample]
+    if (select_outlier == TRUE) {
+      data.lda <- na.omit(Data[[paste(Type[Stats],"_outl", sep="")]][!is.na(Data$Groups),Sample])
+      groups.lda <- na.omit(Data[[paste(Type[Stats],"_outl_red_Groups", sep="")]])
+    } else {
+      data.lda <- Data[[Type[Stats]]][!is.na(Data$Groups),Sample]
+      groups.lda <- Data$Groups
+    }
     colnames(data.lda) <- Data$Wavenumber_min_max
-    groups.lda <- Data$Groups
     
     if (vector_normalize == T) {
       # normalization
@@ -3765,9 +3775,9 @@ if (perform_LDA == T) {
     ############
     
     CV.results.df <- as.data.frame(CV.results)
-    CV.results.df$mean_error <- apply(CV.results[,2,], 1, mean)
-    CV.results.df$sdlow <- apply(CV.results[,2,], 1, FUN=function(x) {mean(x) - sd(x)})
-    CV.results.df$sdhigh <- apply(CV.results[,2,], 1, FUN=function(x) {mean(x) + sd(x)})
+    CV.results.df$mean_error <- apply(CV.results[,2,], 1, median)
+    CV.results.df$q1 <- apply(CV.results[,2,], 1, FUN=function(x) {quantile(x, 0.25)})
+    CV.results.df$q3 <- apply(CV.results[,2,], 1, FUN=function(x) {quantile(x, 0.75)})
     
     p <- ggplot(data=CV.results.df)
     
@@ -3776,8 +3786,8 @@ if (perform_LDA == T) {
     }
     
     p <- p + geom_line(aes(x=PCs.1, y=mean_error, col="black"), size=1) +
-             geom_line(aes(x=PCs.1, y=sdlow, col="black"), size=1, linetype="dashed") +
-             geom_line(aes(x=PCs.1, y=sdhigh, col="black"), size=1, linetype="dashed") + 
+             geom_line(aes(x=PCs.1, y=q1, col="black"), size=1, linetype="dashed") +
+             geom_line(aes(x=PCs.1, y=q3, col="black"), size=1, linetype="dashed") + 
              scale_color_manual("Legend", values=c(lg="#d3d3d3", black="black")) + 
              theme_bw() + theme(legend.position = "none") + 
              labs(x="Principal Components", y="Mean Error Rate") +
@@ -3791,7 +3801,8 @@ if (perform_LDA == T) {
     p <- ggplot(mapping=aes(opt.PCs)) + geom_bar(aes(y= ..count..*100/sum(..count..))) + theme_bw() + 
          labs(x="Optimal number of PCs", y="Frequency [%]") +
          scale_x_continuous(expand = expansion(mult=0.01), breaks=c(1:max.PCs)) +
-         scale_y_continuous(expand = expansion(mult=c(0, 0.05)))
+         scale_y_continuous(expand = expansion(mult=c(0, 0.05))) +
+         coord_cartesian(xlim=c(0.5,max.PCs+0.5))
     
     print(p)
     
@@ -3871,23 +3882,23 @@ if (perform_LDA == T) {
     
     cm.values.ci["Accuracy",] <- binom.confint(x=n_tot*mean(cm.values$Accuracy),
                                                n=n_tot,
-                                               methods = "bayes")[,4:6]
+                                               methods = "exact")[,4:6]
     
     cm.values.ci["Sensitivity",] <- binom.confint(x=n_pos*mean(cm.values$Sensitivity),
                                                n=n_pos,
-                                               methods = "bayes")[,4:6]
+                                               methods = "exact")[,4:6]
     
     cm.values.ci["Specificity",] <- binom.confint(x=n_neg*mean(cm.values$Specificity),
                                                n=n_neg,
-                                               methods = "bayes")[,4:6]
+                                               methods = "exact")[,4:6]
     
     cm.values.ci["PPV",] <- colMeans(binom.confint(x=n_pos_pred*mean(cm.values$PPV),
                                                    n=n_pos_pred,
-                                                   methods = "bayes")[,4:6])
+                                                   methods = "exact")[,4:6])
     
     cm.values.ci["NPV",] <- colMeans(binom.confint(x=n_neg_pred*mean(cm.values$NPV),
                                                    n=n_neg_pred,
-                                                   methods = "bayes")[,4:6])
+                                                   methods = "exact")[,4:6])
     
     
     auc.labels <- matrix(rep(groups.lda, repetitions), nrow(predict.probs), repetitions)
@@ -3896,22 +3907,6 @@ if (perform_LDA == T) {
     cm.values.ci <- round(cm.values.ci*100, 1)
     
     print(cm.values.ci)
-    
-    #########################
-    
-    LDA.scores.df <- data.frame(groups.lda, apply(LDA.scores, 1 , function(x) median(x)))
-    colnames(LDA.scores.df) <- c("Group", "Score")
-    
-    p <- ggplot(data=LDA.scores.df, aes(x=Group, y=Score)) + 
-         stat_boxplot(geom="errorbar", width=0.3) +
-         geom_boxplot(outlier.shape = NA, width=0.7) + 
-         geom_jitter(aes(col=Group), width=0.1, show.legend=F) +
-         geom_hline(yintercept=0, linetype="dashed") +
-         scale_x_discrete(breaks=groups, labels=legend) + 
-         ggtitle("LD scores by group") + theme_bw() + 
-         theme(plot.title = element_text(hjust = 0.5))
-    
-     print(p)
      
      ########################
      
@@ -3940,7 +3935,78 @@ if (perform_LDA == T) {
      options(warn=-1)
      print(p)
      options(warn=0)
-  
+     
+     ############################
+     
+     LDA.scores.df <- data.frame(groups.lda, apply(LDA.scores, 1 , function(x) median(x)))
+     colnames(LDA.scores.df) <- c("Group", "Score")
+     
+     p <- ggplot(data=LDA.scores.df, aes(x=Group, y=Score)) + 
+       stat_boxplot(geom="errorbar", width=0.3) +
+       geom_boxplot(outlier.shape = NA, width=0.7) + 
+       geom_jitter(aes(col=Group), width=0.1, show.legend=F) +
+       geom_hline(yintercept=0, linetype="dashed") +
+       scale_x_discrete(breaks=groups, labels=legend) + 
+       ggtitle("LD scores by group") + theme_bw() + 
+       theme(plot.title = element_text(hjust = 0.5))
+     
+     print(p) 
+     
+     ###############################################
+     
+     LDA.loadings.df <- data.frame(
+       Data$Wavenumber_min_max,
+       apply(LDA.loadings, 1, median),
+       apply(LDA.loadings, 1, function(x) {quantile(x, 0.25)}),
+       apply(LDA.loadings, 1, function(x) {quantile(x, 0.75)})
+     )
+     
+     colnames(LDA.loadings.df) <- c("Wavenumber", "Median", "FirstQuart", "ThirdQuart")
+     
+     p <- ggplot(data=LDA.loadings.df, aes(x=Wavenumber, y=Median)) + 
+          geom_ribbon(aes(ymin=FirstQuart, ymax=ThirdQuart), col="lightgray", fill="lightgray") +
+          geom_line(size=0.7) +
+          geom_hline(yintercept=0, linetype="dashed") + theme_bw() +
+          ggtitle("LD loadings") + theme(plot.title = element_text(hjust = 0.5)) +
+          stat_peaks(geom="text", span=41, color="black", x.label.fmt="%.0f", ignore_threshold=0.7, angle=90, vjust=0.5, hjust=-0.75) + 
+          stat_valleys(geom="text", span=41, color="black", x.label.fmt="%.0f", ignore_threshold=0.35, angle=90, vjust=0.5, hjust=1.75) +
+          scale_x_continuous(name=bquote("Raman shift" ~(cm^-1)), expand=expansion(add=0)) + 
+          scale_y_continuous(name="Intensity", expand=expansion(mult=0.1))
+     
+     print(p)
+     
+     
+     ##############################
+     
+     spectra_median.df <- data.frame(matrix(NA, nrow=length(Data$Wavenumber_min_max), ncol=1+3*length(groups)))
+     
+     colnames(spectra_median.df) <- c("Wavenumber", paste(rep(c("Median","Q1","Q3"), times=length(groups)), rep(groups, each=3), sep="_"))
+     
+     spectra_median.df$Wavenumber <- Data$Wavenumber_min_max
+     
+     for (group in groups) {
+       spectra_median.df[[paste0("Median_", group)]] <- apply(data.lda[groups.lda == group,], 2, median)
+       spectra_median.df[[paste0("Q1_", group)]] <- apply(data.lda[groups.lda == group,], 2, function(x) {quantile(x, 0.25)})
+       spectra_median.df[[paste0("Q3_", group)]] <- apply(data.lda[groups.lda == group,], 2, function(x) {quantile(x, 0.75)})
+     }
+     
+     spectra.combined <- data.frame(matrix(NA, nrow=length(Data$Wavenumber_min_max), ncol=2))
+     colnames(spectra.combined) <- c("WN", "INT")
+     
+     spectra.combined$WN <- Data$Wavenumber_min_max
+     for (i in length(Wavenumber_min_max))
+     
+     p <- ggplot(spectra_median.df, aes(x=Wavenumber, y=Median)) + 
+          geom_line(aes(col=Group), size=0.5) +
+          geom_ribbon(aes(ymin=Q1, ymax=Q3, fill=Group), alpha=0.2, show.legend=FALSE) +
+          stat_peaks(data=subset(spectra_median.df, Group == group[1]), geom="text", span=41, color="black", x.label.fmt="%.0f", ignore_threshold=0, angle=90, vjust=0.5, hjust=-0.75) +
+          #scale_color_discrete(label=legend) +
+          #scale_fill_discrete(label=legend) +
+          scale_x_continuous(expand=expansion(0)) + 
+          scale_y_continuous(expand=expansion(c(0,0.1))) +
+          theme_bw()
+     
+     print(p)
   }
   
 }
