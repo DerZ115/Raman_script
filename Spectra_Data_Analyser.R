@@ -63,8 +63,8 @@ Packages <- c("plyr","dplyr","IDPmisc","prospectr","dendextend","baseline",
               "ChemoSpec", "matrixStats", "stringr", "MASS", "caret", 
               "ROCR", "binom", "cvAUC","reshape2")
 
-for (p in 1:length(Packages)) {
-  require(Packages[p], character.only = TRUE)
+for (p in Packages) {
+  library(p, character.only = TRUE)
 }
 
 ### Function for import
@@ -3625,6 +3625,7 @@ if (perform_LDA == T) {
     
     max.LDs <- length(levels(groups.lda))-1
     
+    # Prepare matrices and arrays for results
     CV.results <- array(NA, c(max.PCs, 3, segments.out*repetitions))
     colnames(CV.results) <- c("PCs", "mean_error", "sd_error")
     opt.PCs <- rep(NA, repetitions*segments.out)
@@ -3645,12 +3646,13 @@ if (perform_LDA == T) {
     
     auc.results <- rep(NA, repetitions*segments.out)
     
-    for (r in c(1:repetitions)) {
+    for (r in c(1:repetitions)) { # START Cross Validation
       tfolds <- createFolds(groups.lda, k=segments.out, list=T) # split data into segments
       
       for (t in c(1:segments.out)) {
       
         i <- i + 1
+        # 1 Segment for testing, rest for calibration
         test.set <- sort(unlist(tfolds[t], use.names=F))
         calib.set <- sort(unlist(tfolds[-t], use.names=F))
         
@@ -3659,6 +3661,7 @@ if (perform_LDA == T) {
         
         for (k in c(1:segments.in)) {
           
+          # 1 Segment far validation, rest for training
           valid.set <- unlist(kfolds[k], use.names=F)
           train.set <- unlist(kfolds[-k], use.names=F)
           
@@ -3667,7 +3670,7 @@ if (perform_LDA == T) {
           scores.train <- PCA$x
           scores.valid <- predict(PCA, data.lda[calib.set,][valid.set,])
           
-          for (p in c(1:max.PCs)) {
+          for (p in c(1:max.PCs)) { # Different amount of PCs
             
             train.df <- data.frame(scores.train[, 1:p])
             colnames(train.df) <- c(1:p)
@@ -3688,6 +3691,7 @@ if (perform_LDA == T) {
           
         } # inner CV loop
           
+        # Add error rates to results array
         CV.results[,1,i] <- c(1:max.PCs)
         CV.results[,2,i] <- apply(CV.err, 2, mean)
         CV.results[,3,i] <- apply(CV.err, 2, sd)
@@ -3695,22 +3699,26 @@ if (perform_LDA == T) {
         CV.res.min <- CV.results[CV.results[,2,i] == min(CV.results[,2,i]),,i]
         if (is.vector(CV.res.min)) {CV.res.min <- t(as.matrix(CV.res.min))}
         
-        parsimony <- 0
+        parsimony <- 0 # How many stdevs of error rate the "optimal" number of 
+                       # components can be above the minimum one
         threshold <- CV.res.min[1,2] + parsimony * CV.res.min[1,3]/sqrt(segments.in)
         
         CV.res.opt <- CV.results[(CV.results[,2,i] <= threshold),,i]
         if (is.vector(CV.res.opt)) {CV.res.opt <- t(as.matrix(CV.res.opt))}
         opt.PCs[i] <- CV.res.opt[1,1]
         
+        # PCA of the whole calibration set 
         PCA <- prcomp(data.lda[calib.set,], center=T, scale=F, rank=max.PCs)
         scores.calib <- PCA$x
         PCA.scores[,,i][1:nrow(PCA$x),] <- PCA$x
         PCA.loadings[,,i] <- PCA$rotation
         
+        # Save scores for later
         scores.calib.df <- data.frame(groups.lda[calib.set], PCA$x)
         scores.test <- predict(PCA, data.lda[test.set,])
         PCA.scores[,,i][test.set,] <- scores.test
         
+        # LDA with optimal number of PCs
         model.LDA <- lda(data.frame(scores.calib[,1:opt.PCs[i]]), grouping=groups.lda[calib.set], CV=F)
         options(warn=-1)
         test.predict <- predict(model.LDA, data.frame(scores.test[,1:opt.PCs[i]]))
@@ -3726,6 +3734,7 @@ if (perform_LDA == T) {
         predict.results[,,i][1:length(groups.lda[test.set]),1] <- groups.lda[test.set] # store reference labels of TEST
         predict.results[,,i][1:length(test.predict$class),2] <- as.factor(test.predict$class) # store predictions for TEST
         
+        # Receiver Operator Characteristic Curve
         roc.prob <- prediction(predict.probs[test.set, r], groups.lda[test.set])
         roc.perf <- performance(roc.prob, "tpr","fpr")
         auc.results[i] <- performance(roc.prob, "auc")@y.values[1]
@@ -3746,6 +3755,7 @@ if (perform_LDA == T) {
     
     # Postprocessing
     
+    # Add together confusion matrices of each outer loop
     cm.results.merged <- array(NA, c(2,2,repetitions))
     
     j <- 1
@@ -3756,7 +3766,7 @@ if (perform_LDA == T) {
     cm.results <- cm.results.merged
     
     #########################
-    
+    # Average ROC curves of each outer loop
     roc.results.avg <- array(NA, c(nrow(roc.results), 2, repetitions))
     
     j <- 1
@@ -3774,10 +3784,13 @@ if (perform_LDA == T) {
     # Plotting #
     ############
     
+    # Mean Error rate by number of PCs
     CV.results.df <- as.data.frame(CV.results)
-    CV.results.df$mean_error <- apply(CV.results[,2,], 1, median)
-    CV.results.df$q1 <- apply(CV.results[,2,], 1, FUN=function(x) {quantile(x, 0.25)})
-    CV.results.df$q3 <- apply(CV.results[,2,], 1, FUN=function(x) {quantile(x, 0.75)})
+    CV.summary.df <- data.frame(PCs=c(1:max.PCs))
+
+    CV.summary.df$mean_error <- apply(CV.results[,2,], 1, mean)
+    CV.summary.df$sdlow <- apply(CV.results[,2,], 1, function(x) {ifelse(mean(x)-sd(x)<0, 0, mean(x)-sd(x))})                        
+    CV.summary.df$sdhigh <- apply(CV.results[,2,], 1, function(x) {mean(x)+sd(x)})
     
     p <- ggplot(data=CV.results.df)
     
@@ -3785,9 +3798,9 @@ if (perform_LDA == T) {
       p <- p + geom_line(aes_string(x=names(CV.results.df)[i*3+1], y=names(CV.results.df)[i*3+2], col=shQuote("lg")))
     }
     
-    p <- p + geom_line(aes(x=PCs.1, y=mean_error, col="black"), size=1) +
-             geom_line(aes(x=PCs.1, y=q1, col="black"), size=1, linetype="dashed") +
-             geom_line(aes(x=PCs.1, y=q3, col="black"), size=1, linetype="dashed") + 
+    p <- p + geom_line(data=CV.summary.df, mapping=aes(x=PCs, y=mean_error, col="black"), size=1) +
+             geom_line(data=CV.summary.df, mapping=aes(x=PCs, y=sdlow, col="black"), size=1, linetype="dashed") +
+             geom_line(data=CV.summary.df, mapping=aes(x=PCs, y=sdhigh, col="black"), size=1, linetype="dashed") + 
              scale_color_manual("Legend", values=c(lg="#d3d3d3", black="black")) + 
              theme_bw() + theme(legend.position = "none") + 
              labs(x="Principal Components", y="Mean Error Rate") +
@@ -3798,6 +3811,7 @@ if (perform_LDA == T) {
     
     ############################################
     
+    # Frequency of each number of PCs being determined as optimal
     p <- ggplot(mapping=aes(opt.PCs)) + geom_bar(aes(y= ..count..*100/sum(..count..))) + theme_bw() + 
          labs(x="Optimal number of PCs", y="Frequency [%]") +
          scale_x_continuous(expand = expansion(mult=0.01), breaks=c(1:max.PCs)) +
@@ -3808,6 +3822,7 @@ if (perform_LDA == T) {
     
     ################################################
     
+    # Confusion matrix with histograms
     cm.type <- factor(rep(c("TN", "FP", "FN", "TP"), times=repetitions), levels=c("TN", "FP", "FN", "TP"))
     
     cm.df <- data.frame(c(cm.results), cm.type)
@@ -3855,6 +3870,7 @@ if (perform_LDA == T) {
     
     ###############################
     
+    # Quality measures of classification
     cm.values <- data.frame(matrix(NA, nrow=repetitions, ncol=6))
     colnames(cm.values) <- c("Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "AUROC")
     
@@ -3904,13 +3920,13 @@ if (perform_LDA == T) {
     auc.labels <- matrix(rep(groups.lda, repetitions), nrow(predict.probs), repetitions)
     cm.values.ci["AUROC",] <- unlist(ci.cvAUC(predict.probs, auc.labels)[c("cvAUC", "ci")])
     
-    cm.values.ci <- round(cm.values.ci*100, 1)
+    cm.values.ci <- round(cm.values.ci*100, 2)
     
     print(cm.values.ci)
      
      ########################
      
-     
+     # ROC curves
      roc.results.df <- as.data.frame(roc.results)
      roc.results.df$median_FPR <- apply(roc.results[,1,], 1, median, na.rm=T)
      roc.results.df$median_TPR <- apply(roc.results[,2,], 1, median, na.rm=T)
@@ -3938,6 +3954,7 @@ if (perform_LDA == T) {
      
      ############################
      
+     # LDA scores by group
      LDA.scores.df <- data.frame(groups.lda, apply(LDA.scores, 1 , function(x) median(x)))
      colnames(LDA.scores.df) <- c("Group", "Score")
      
@@ -3954,6 +3971,7 @@ if (perform_LDA == T) {
      
      ###############################################
      
+     # LDA loadings
      LDA.loadings.df <- data.frame(
        Data$Wavenumber_min_max,
        apply(LDA.loadings, 1, median),
@@ -3967,17 +3985,17 @@ if (perform_LDA == T) {
           geom_ribbon(aes(ymin=FirstQuart, ymax=ThirdQuart), col="lightgray", fill="lightgray") +
           geom_line(size=0.7) +
           geom_hline(yintercept=0, linetype="dashed") + theme_bw() +
-          ggtitle("LD loadings") + theme(plot.title = element_text(hjust = 0.5)) +
           stat_peaks(geom="text", span=41, color="black", x.label.fmt="%.0f", ignore_threshold=0.7, angle=90, vjust=0.5, hjust=-0.75) + 
           stat_valleys(geom="text", span=41, color="black", x.label.fmt="%.0f", ignore_threshold=0.35, angle=90, vjust=0.5, hjust=1.75) +
-          scale_x_continuous(name=bquote("Raman shift" ~(cm^-1)), expand=expansion(add=0)) + 
-          scale_y_continuous(name="Intensity", expand=expansion(mult=0.1))
+          scale_x_continuous(name=bquote(bold("Raman shift" ~(cm^-1))), expand=expansion(add=0)) + 
+          scale_y_continuous(name=bquote(bold("Loadings of PCA-LDA")), expand=expansion(mult=0.1))
      
      print(p)
      
      
      ##############################
      
+     # Median spectra by group with interquart range
      spectra_median.df <- data.frame(matrix(NA, nrow=length(Data$Wavenumber_min_max), ncol=1+3*length(groups)))
      
      colnames(spectra_median.df) <- c("Wavenumber", paste(rep(c("Median","Q1","Q3"), times=length(groups)), rep(groups, each=3), sep="_"))
@@ -3999,7 +4017,7 @@ if (perform_LDA == T) {
      spectra_median.df <- reshape(spectra_median.df, varying=2:ncol(spectra_median.df), sep="_", direction = "long", timevar="Group")
      
      p <- ggplot(spectra_median.df, aes(x=Wavenumber, y=Median)) + 
-          geom_line(aes(col=Group), size=0.5) +
+          geom_line(aes(col=Group), size=0.7) +
           geom_ribbon(aes(ymin=Q1, ymax=Q3, fill=Group), alpha=0.2, show.legend=FALSE) +
           stat_peaks(data=spectra.combined, aes(x=WN, y=INT), geom="text", span=33, 
                      color="black", x.label.fmt="%.0f", ignore_threshold=0.02, angle=90, 
@@ -4008,9 +4026,49 @@ if (perform_LDA == T) {
           scale_fill_discrete(label=legend) +
           scale_x_continuous(expand=expansion(0)) + 
           scale_y_continuous(expand=expansion(c(0,0.1))) +
-          theme_bw()
+          theme_bw() + labs(x=bquote(bold("Raman shift" ~(cm^-1))), y=bquote(bold("Intensity")))
      
      print(p)
+     
+     #############################
+     
+     # Difference spectrum
+     if (length(groups) > 2) {
+       print("Difference Spectrum is only possible with exactly two groups")
+     } else {
+       
+       diff.spectrum.df <- data.frame(Wavenumber=Data$Wavenumber_min_max, Median=NA, Q1=NA, Q3=NA)
+       
+       diff.spectrum.df$Median <- 
+         unlist(subset(spectra_median.df, Group==pos.class, select=Median) - 
+         subset(spectra_median.df, Group!=pos.class, select=Median))
+       
+       diff.spectrum.df$Q1 <- 
+         unlist(subset(spectra_median.df, Group==pos.class, select=Q1) - 
+         subset(spectra_median.df, Group!=pos.class, select=Q3))
+       
+       diff.spectrum.df$Q3 <- 
+         unlist(subset(spectra_median.df, Group==pos.class, select=Q3) - 
+         subset(spectra_median.df, Group!=pos.class, select=Q1))
+       
+       p <- ggplot(diff.spectrum.df, aes(x=Wavenumber, y=Median)) + 
+            geom_line(size=0.7) + 
+            geom_ribbon(aes(ymin=Q1, ymax=Q3), alpha=0.25) +
+            geom_hline(yintercept=0, linetype="dashed") +
+            stat_peaks(geom="text", span=31, color="black", 
+                       x.label.fmt="%.0f", ignore_threshold=0.65, 
+                       angle=90, vjust=0.5, hjust=-0.75) + 
+            stat_valleys(geom="text", span=31, color="black", 
+                         x.label.fmt="%.0f", ignore_threshold=0.4, 
+                         angle=90, vjust=0.5, hjust=1.75) +
+            scale_x_continuous(expand=expansion(0)) +
+            theme_bw() + 
+            labs(x=bquote(bold("Wavenumber" ~(cm^-1))), y=bquote(bold(~Delta~ "Intensity")))
+       
+       print(p)
+       
+     }
+     
   }
   
 }

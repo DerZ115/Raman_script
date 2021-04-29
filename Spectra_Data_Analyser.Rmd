@@ -71,12 +71,8 @@ Packages <- c("dplyr","IDPmisc", "prospectr","dendextend","baseline",
               "pls","plotrix","knitr","ggplot2","gridExtra","ggpubr",
               "ChemoSpec", "matrixStats", "stringr")
 
-for (p in 1:length(Packages)) {
-  test_package <- require(Packages[p], character.only = TRUE)
-  if(test_package == FALSE){
-    install.packages(Packages[p])
-    test_package
-  }
+for (p in Packages) {
+  library(p, character.only = TRUE)
 }
 ```
 
