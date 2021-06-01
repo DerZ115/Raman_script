@@ -9,7 +9,7 @@ work_dir <- ("C:/Users/Daniel/Desktop/Raman_script/")     # Working directory (n
 data_folder <- "Data/"              # Name of your Data folder in your working directory
 groups <- c("E","Z")                 # Filenames (unique part)
 ending <- ".TXT"                     # Filetype
-legend <- c("control","induced")     # Naming in publication
+legend <- c("control","treated")     # Naming in publication
 
 plot_original <- T                   # plot original spectra: yes = T | no = F
 Legend_pos <- "topright"             # position of legend in plots "topleft" or "topright"
@@ -20,6 +20,8 @@ min_range <- "300"                   # reduce minimum wavenumber to...
 
 remove_area <- F                     # remove Area: yes = T | no = F
 area <- c("1250", "1450")            # exclude values from-to wavenumber
+
+spectra_per_cell <- 4
 
 vector_normalize <- T                # Normalize each spectrum to a vector of length 1
 select_outlier <- T                  # select outlier during PCA: yes = T |no = F
@@ -33,7 +35,7 @@ x_PC <- 1                            # PC on x-axis of score plots
 y_PC <- 2                            # PC on y-axis of score plots
 
 perform_LDA <- T                     # perform linear discriminant analysis
-repetitions <- 90                   # Number of repetitions of the cross-validation
+repetitions <- 100                   # Number of repetitions of the cross-validation
 segments.out <- 3                    # Number of segments in the outer loop
 segments.in <- 5                     # Number of segments in the inner loop
 max.PCs <- 10                        # Max number of PCs to use for LDA
@@ -127,6 +129,23 @@ Import.data <- function(work_dir, data_folder, groups, ending) {
 ### Import data
 Data <- Import.data(work_dir = work_dir, data_folder = data_folder, groups = groups, ending = ending)
 
+if (spectra_per_cell > 1) {
+  # Consistency check groups 
+  if (any(tapply(Data$Groups, 
+             c(gl(length(Data$Groups), spectra_per_cell, length(Data$Groups))), 
+             function(x) {(length(unique(x)) != 1)}))) {
+    warning("At least one average spectrum contains multiple groups. Only the first group is retained. Please check the sample groups again")
+  }
+  
+  
+  Data$Spectra <- aggregate(Data$Spectra, 
+                            by=list(gl(nrow(Data$Spectra), 
+                                       spectra_per_cell, 
+                                       nrow(Data$Spectra))),
+                            FUN=mean)[-1]
+  Data$Groups <- Data$Groups[seq(1, length(Data$Groups), spectra_per_cell)]
+}
+
 ### Function for Spectra plots
 # Liste = list with Wavenumber, Spectra, Groups
 # Spektren = which Spectra should be plotted
@@ -166,6 +185,8 @@ plot.spectra <- function(Liste,
           family = "sans", 
           xaxs = "i")
   grid(lwd = 0.8)
+  
+  
 }
 
 ### Plot of the original spectra
@@ -224,10 +245,10 @@ arrows(x0 = as.numeric(min(Data$Wavenumber)),
        code = 3)
 
 Data$Spectra_min_max <- subset(Data$Spectra, 
-                                      select = -c(which(colnames(Data$Spectra)==max_range):
-                                                    which(colnames(Data$Spectra)==max(Data$Wavenumber)),
-                                                  which(colnames(Data$Spectra)==min(Data$Wavenumber)):
-                                                    which(colnames(Data$Spectra)==min_range)))
+                               select = -c(which(colnames(Data$Spectra)==max_range):
+                                           which(colnames(Data$Spectra)==max(Data$Wavenumber)),
+                                           which(colnames(Data$Spectra)==min(Data$Wavenumber)):
+                                           which(colnames(Data$Spectra)==min_range)))
 
 Data$Wavenumber_min_max <- as.numeric(colnames(Data$Spectra_min_max))
 
@@ -3964,7 +3985,8 @@ if (perform_LDA == T) {
        geom_jitter(aes(col=Group), width=0.1, show.legend=F) +
        geom_hline(yintercept=0, linetype="dashed") +
        scale_x_discrete(breaks=groups, labels=legend) + 
-       ggtitle("LD scores by group") + theme_bw() + 
+       ggtitle("LD scores by group") + 
+       theme_bw() + 
        theme(plot.title = element_text(hjust = 0.5))
      
      print(p) 
@@ -3988,7 +4010,7 @@ if (perform_LDA == T) {
           stat_peaks(geom="text", span=41, color="black", x.label.fmt="%.0f", ignore_threshold=0.7, angle=90, vjust=0.5, hjust=-0.75) + 
           stat_valleys(geom="text", span=41, color="black", x.label.fmt="%.0f", ignore_threshold=0.35, angle=90, vjust=0.5, hjust=1.75) +
           scale_x_continuous(name=bquote(bold("Raman shift" ~(cm^-1))), expand=expansion(add=0)) + 
-          scale_y_continuous(name=bquote(bold("Loadings of PCA-LDA")), expand=expansion(mult=0.1))
+          scale_y_continuous(name=bquote(bold("Loadings of PCA-LDA")), expand=expansion(mult=0.25))
      
      print(p)
      
@@ -4025,8 +4047,9 @@ if (perform_LDA == T) {
           scale_color_discrete(label=legend) +
           scale_fill_discrete(label=legend) +
           scale_x_continuous(expand=expansion(0)) + 
-          scale_y_continuous(expand=expansion(c(0,0.1))) +
-          theme_bw() + labs(x=bquote(bold("Raman shift" ~(cm^-1))), y=bquote(bold("Intensity")))
+          scale_y_continuous(expand=expansion(c(0,0.25))) +
+          theme_bw() + theme(legend.position = "bottom") + 
+          labs(x=bquote(bold("Raman shift" ~(cm^-1))), y=bquote(bold("Intensity")))
      
      print(p)
      
@@ -4066,6 +4089,7 @@ if (perform_LDA == T) {
             labs(x=bquote(bold("Wavenumber" ~(cm^-1))), y=bquote(bold(~Delta~ "Intensity")))
        
        print(p)
+       
        
      }
      
