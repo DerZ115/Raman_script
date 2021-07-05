@@ -6,22 +6,24 @@ VERSION_NR <- 001                    # change for multiple analysis (only for do
 
 work_dir <- ("C:/Users/Daniel/Desktop/Raman_script/")     # Working directory (name of project folder)
 
-data_folder <- "Data/"              # Name of your Data folder in your working directory
-groups <- c("E","Z")                 # Filenames (unique part)
+data_folder <- "spectra/Data/"              # Name of your Data folder in your working directory
+groups <- c("C","E")                 # Filenames (unique part)
 ending <- ".TXT"                     # Filetype
-legend <- c("control","treated")     # Naming in publication
+legend <- c("Control","Etoposide")     # Naming in publication
 
 plot_original <- T                   # plot original spectra: yes = T | no = F
 Legend_pos <- "topright"             # position of legend in plots "topleft" or "topright"
 num_x <- 1                           # number of plots in one single window: 1 or 2
 
-max_range <- "1600"                  # reduce maximum wavenumber to...
-min_range <- "300"                   # reduce minimum wavenumber to...
+max_range <- "1810"                  # reduce maximum wavenumber to...
+min_range <- "440"                   # reduce minimum wavenumber to...
 
 remove_area <- F                     # remove Area: yes = T | no = F
 area <- c("1250", "1450")            # exclude values from-to wavenumber
 
-spectra_per_cell <- 4
+spectra_per_cell <- 4                # How many spectra were measured per cell. 
+                                     # The average spectrum for each cell will be calculated 
+                                     # and used for further analysis.
 
 vector_normalize <- T                # Normalize each spectrum to a vector of length 1
 select_outlier <- T                  # select outlier during PCA: yes = T |no = F
@@ -38,8 +40,8 @@ perform_LDA <- T                     # perform linear discriminant analysis
 repetitions <- 100                   # Number of repetitions of the cross-validation
 segments.out <- 3                    # Number of segments in the outer loop
 segments.in <- 5                     # Number of segments in the inner loop
-max.PCs <- 10                        # Max number of PCs to use for LDA
-pos.class <- "Z"
+max.PCs <- 20                        # Max number of PCs to use for LDA
+pos.class <- "E1"
 
 ### Choose Pretreatments
 
@@ -57,7 +59,7 @@ pos.class <- "Z"
 # 10. Rolling Ball
 
 # Enter the numbers of the treatments that should be performed here:
-pretreatments <- c(4)
+pretreatments <- c(1,2,3,4,5,6,7,8,9,10)
 
 ### Load packages
 Packages <- c("plyr","dplyr","IDPmisc","prospectr","dendextend","baseline",
@@ -142,8 +144,10 @@ if (spectra_per_cell > 1) {
                             by=list(gl(nrow(Data$Spectra), 
                                        spectra_per_cell, 
                                        nrow(Data$Spectra))),
-                            FUN=mean)[-1]
+                            FUN=sum)[-1]
   Data$Groups <- Data$Groups[seq(1, length(Data$Groups), spectra_per_cell)]
+  
+  Data$Files <- Data$Files[seq(1, length(Data$Files), spectra_per_cell)]
 }
 
 ### Function for Spectra plots
@@ -886,9 +890,9 @@ if (4 %in% pretreatments) {
   bc_fil_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
                         method = "fillPeaks",  
                         lambda=1, 
-                        hwi=10, 
-                        it=6, 
-                        int=400)
+                        hwi=8, 
+                        it=5, 
+                        int=500)
   
   # extract data from baseline object
   Data$Spectra_fil_orig_rw <- as.data.frame(getSpectra(bc_fil_rw))
@@ -1211,9 +1215,9 @@ if (5 %in% pretreatments) {
   bc_irl_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
                         method = "irls", 
                         lambda1 = 1, 
-                        lambda2 = 7, 
+                        lambda2 = 5, 
                         maxit = 200, 
-                        wi = 0.02)
+                        wi = 0.01)
   
   # extract data from baseline object
   Data$Spectra_irl_orig_rw <- as.data.frame(getSpectra(bc_irl_rw))
@@ -1370,7 +1374,7 @@ if (5 %in% pretreatments) {
                             lambda1 = 5, 
                             lambda2 = 9, 
                             maxit = 200, 
-                            wi = 0.05)
+                            wi = 0.02)
     
     # extract data from baseline object
     Data$Spectra_irl_orig_area <- as.data.frame(getSpectra(bc_irl_area))
@@ -1531,7 +1535,7 @@ if (6 %in% pretreatments) {
   # calculate baseline with "baseline" package
   bc_med_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
                         method = "medianWindow", 
-                        hwm = 300)
+                        hwm = 100)
   
   # extract data from baseline object
   Data$Spectra_med_orig_rw <- as.data.frame(getSpectra(bc_med_rw))
@@ -1845,7 +1849,9 @@ if (7 %in% pretreatments) {
   # calculate baseline with "baseline" package
   bc_mod_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
                         method = "modpolyfit", 
-                        deg = 10)
+                        deg = 15,
+                        tol = 0.001,
+                        rep = 100)
   
   # extract data from baseline object
   Data$Spectra_mod_orig_rw <- as.data.frame(getSpectra(bc_mod_rw))
@@ -2163,8 +2169,8 @@ if (8 %in% pretreatments) {
                         method = "peakDetection", 
                         left=30,
                         right=30,
-                        lwin=50, 
-                        rwin=50)
+                        lwin=10, 
+                        rwin=10)
   
   # extract data from baseline object
   Data$Spectra_pea_orig_rw <- as.data.frame(getSpectra(bc_pea_rw))
@@ -2482,7 +2488,7 @@ if (9 %in% pretreatments) {
   # calculate baseline with "baseline" package
   bc_rbe_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
                         method = "rfbaseline", 
-                        span=0.25)
+                        span=0.1)
   
   # extract data from baseline object
   Data$Spectra_rbe_orig_rw <- as.data.frame(getSpectra(bc_rbe_rw))
@@ -2792,8 +2798,8 @@ if (10 %in% pretreatments) {
   # calculate baseline with "baseline" package
   bc_rol_rw <- baseline(spectra = as.matrix(Data$Spectra_min_max), 
                         method = "rollingBall", 
-                        wm=20, 
-                        ws=20)
+                        wm=40, 
+                        ws=40)
   
   # extract data from baseline object
   Data$Spectra_rol_orig_rw <- as.data.frame(getSpectra(bc_rol_rw))
@@ -3446,6 +3452,7 @@ if (remove_area == T) {
       print(paste(Stats, "Select outlier: ESC to exit"))
       outlier = identify( x = PCA$x[,x_PC], y = PCA$x[,y_PC])
       print(outlier)
+      print(Data$Files[outlier])
       Data[[paste(Type[Stats],"_outl",sep="")]][outlier,] = NA
       Data[[paste(Type[Stats],"_outl_ar_Groups",sep="")]][outlier] = NA
       #print(Data$Groups)
@@ -3622,6 +3629,9 @@ if (perform_LDA == T) {
   
   
   for (Stats in pretreatments) {
+    
+    print("---------")
+    print(Names[Stats])
     
     #extract data
     if (select_outlier == TRUE) {
