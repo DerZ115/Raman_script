@@ -26,6 +26,9 @@ def parse_arguments():
 
 files, dir, out_dir = parse_arguments()
 
+if not os.path.isdir(out_dir):
+    os.mkdir(out_dir)
+
 for i, file in enumerate(files):
 
     print(f"File {i+1}/{len(files)}.")
@@ -37,8 +40,11 @@ for i, file in enumerate(files):
         data = f.read()
     
     data = data.split(sep=b'END\x00')
-    wn_data = data[8]
-    int_data = data[9]
+    for i, segment in enumerate(data):
+        if segment[-4:] == b'OK\x00\x00' and data[i+1][-4:] == b'WN\x00\x00':
+            wn_data = data[i+1]
+            int_data = data[i+2]
+            break
 
     wn_data = [wn_data[j:j+4] for j in range(0, len(wn_data), 4)]
     

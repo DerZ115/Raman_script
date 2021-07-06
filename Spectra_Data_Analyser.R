@@ -21,7 +21,7 @@ min_range <- "440"                   # reduce minimum wavenumber to...
 remove_area <- F                     # remove Area: yes = T | no = F
 area <- c("1250", "1450")            # exclude values from-to wavenumber
 
-spectra_per_cell <- 4                # How many spectra were measured per cell. 
+spectra_per_cell <- 1                # How many spectra were measured per cell. 
                                      # The average spectrum for each cell will be calculated 
                                      # and used for further analysis.
 
