@@ -15,7 +15,7 @@ files_new = []
 for i in range(n):
     new_filename = group_name + "_" + str(i+1).zfill(digits) + ".TXT"
     # os.rename(os.path.join(data_path, files[i]), os.path.join(data_path, new_filename))
-    print(f"{i}: {files[i]{new_filename}")
+    print(f"{i}: {files[i]} -> {new_filename}")
     
 
 
