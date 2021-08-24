@@ -37,7 +37,7 @@ min_range <- "440"                   # reduce minimum wavenumber to...
 remove_area <- F                     # remove Area: yes = T | no = F
 area <- c("1250", "1450")            # exclude values from-to wavenumber
 
-spectra_per_cell <- 4                # How many spectra were measured per cell. 
+spectra_per_cell <- 1                # How many spectra were measured per cell. 
                                      # The average spectrum for each cell will be calculated and used for further analysis.
 
 ### Choose Pretreatments
@@ -3560,12 +3560,12 @@ for (Stats in pretreatments) {
   
   if(select_outlier == T){
     #print(paste(Stats, "Select outlier: ESC to exit"))
-    outlier = outl_min_max[[[Stats]]]
+    outlier = outl_min_max[[Stats]]
     print(outlier)
     print(Data$Files[outlier])
     Data[[paste(Type[[Stats]],"_outl",sep="")]][outlier,] = NA
-    Data[[paste(Type[[Stats]],"_outl",sep="")]][as.integer(outl_min_max[[[Stats]]]),] = NA
-    Data[[paste(Type[[Stats]],"_outl_red_Groups",sep="")]][as.integer(outl_min_max[[[Stats]]])] = NA
+    Data[[paste(Type[[Stats]],"_outl",sep="")]][as.integer(outl_min_max[[Stats]]),] = NA
+    Data[[paste(Type[[Stats]],"_outl_red_Groups",sep="")]][as.integer(outl_min_max[[Stats]])] = NA
   }
   
   if (plot_loadings == T) {
@@ -4021,7 +4021,7 @@ perform_LDA <- T                     # perform linear discriminant analysis
 repetitions <- 100                   # Number of repetitions of the cross-validation
 segments.out <- 3                    # Number of segments in the outer loop
 segments.in <- 5                     # Number of segments in the inner loop
-max.PCs <- 12                        # Max number of PCs to use for LDA
+max.PCs <- 25                        # Max number of PCs to use for LDA
 pos.class <- "E"
 
 ```

@@ -15,7 +15,7 @@ plot_original <- T                   # plot original spectra: yes = T | no = F
 Legend_pos <- "topright"             # position of legend in plots "topleft" or "topright"
 num_x <- 1                           # number of plots in one single window: 1 or 2
 
-max_range <- "1810"                  # reduce maximum wavenumber to...
+max_range <- "1700"                  # reduce maximum wavenumber to...
 min_range <- "440"                   # reduce minimum wavenumber to...
 
 remove_area <- F                     # remove Area: yes = T | no = F
@@ -40,8 +40,8 @@ perform_LDA <- T                     # perform linear discriminant analysis
 repetitions <- 100                   # Number of repetitions of the cross-validation
 segments.out <- 3                    # Number of segments in the outer loop
 segments.in <- 5                     # Number of segments in the inner loop
-max.PCs <- 20                        # Max number of PCs to use for LDA
-pos.class <- "E1"
+max.PCs <- 25                        # Max number of PCs to use for LDA
+pos.class <- "E"
 
 ### Choose Pretreatments
 
@@ -59,7 +59,7 @@ pos.class <- "E1"
 # 10. Rolling Ball
 
 # Enter the numbers of the treatments that should be performed here:
-pretreatments <- c(1,2,3,4,5,6,7,8,9,10)
+pretreatments <- c(4)
 
 ### Load packages
 Packages <- c("plyr","dplyr","IDPmisc","prospectr","dendextend","baseline",
@@ -4111,4 +4111,28 @@ if (perform_LDA == T) {
 end_time = format(Sys.time(), '%X') # get end time of analysis
 # print time difference between start time and end time
 print(paste("Time used for analysis:", round(as.difftime(end_time, units = "mins")-as.difftime(start_time, units = "mins"),digits=2),"minutes"))
+
+y1lim <- c(0,0.2)
+y2lim <- c(-1.5,1)
+b <- diff(y1lim)/diff(y2lim)
+a <- y1lim[1] - b*y2lim[1]
+
+
+p <- ggplot(spectra_median.df, aes(x=Wavenumber, y=Median)) + 
+  geom_line(aes(col=Group), size=0.7) +
+  geom_line(data=LDA.loadings.df, mapping=aes(x=Wavenumber, y=a+Median*b), color="gray") + 
+  geom_hline(yintercept=a, linetype="dashed") +
+  geom_ribbon(aes(ymin=Q1, ymax=Q3, fill=Group), alpha=0.2, show.legend=FALSE) +
+  stat_peaks(data=spectra.combined, aes(x=WN, y=INT), geom="text", span=35, 
+             color="black", x.label.fmt="%.0f", ignore_threshold=0.05, angle=90, 
+             vjust=0.5, hjust=-0.75) +
+  scale_color_discrete(label=legend) +
+  scale_fill_discrete(label=legend) +
+  scale_x_continuous(expand=expansion(0)) + 
+  scale_y_continuous(expand=expansion(c(0,0.25)), name="Intensity",
+                     sec.axis=sec_axis(~ (. - a)/b, name="Loadings")) +
+  theme_bw() + theme(legend.position = "bottom") + 
+  labs(x=bquote("Raman shift" ~(cm^-1)))
+
+print(p)
 
