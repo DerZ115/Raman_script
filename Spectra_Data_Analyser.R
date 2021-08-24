@@ -37,7 +37,7 @@ x_PC <- 1                            # PC on x-axis of score plots
 y_PC <- 2                            # PC on y-axis of score plots
 
 perform_LDA <- T                     # perform linear discriminant analysis
-repetitions <- 100                   # Number of repetitions of the cross-validation
+repetitions <- 20                   # Number of repetitions of the cross-validation
 segments.out <- 3                    # Number of segments in the outer loop
 segments.in <- 5                     # Number of segments in the inner loop
 max.PCs <- 25                        # Max number of PCs to use for LDA
@@ -62,10 +62,8 @@ pos.class <- "E"
 pretreatments <- c(4)
 
 ### Load packages
-Packages <- c("plyr","dplyr","IDPmisc","prospectr","dendextend","baseline",
-              "pls","plotrix","knitr","ggplot2","gridExtra","ggpubr","ggpmisc",
-              "ChemoSpec", "matrixStats", "stringr", "MASS", "caret", 
-              "ROCR", "binom", "cvAUC","reshape2")
+Packages <- c("prospectr","baseline","knitr","ggplot2","ggpubr","ggpmisc",
+              "matrixStats","stringr","MASS","caret","ROCR", "binom", "cvAUC")
 
 for (p in Packages) {
   library(p, character.only = TRUE)
