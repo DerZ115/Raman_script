@@ -3,5 +3,6 @@
 .RData
 .RDataTmp
 .Ruserdata
-spectra/
+spectra/HL_Behandlungsversuche
+spectra/NPs
 *.png
