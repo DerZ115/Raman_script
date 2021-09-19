@@ -4,12 +4,12 @@ start_time = format(Sys.time(), '%X') # get starttime of analysis
 
 VERSION_NR <- 001                    # change for multiple analysis (only for documentation)
 
-work_dir <- ("C:/Users/Daniel/Desktop/Raman_script/")     # Working directory (name of project folder)
+work_dir <- ("/home/daniel/Raman_script/")     # Working directory (name of project folder)
 
 data_folder <- "spectra/Data/"              # Name of your Data folder in your working directory
-groups <- c("C","E")                 # Filenames (unique part)
+groups <- c("C", "E")                 # Filenames (unique part)
 ending <- ".TXT"                     # Filetype
-legend <- c("Control","Etoposide")     # Naming in publication
+legend <- c("Control", "Etoposide")     # Naming in publication
 
 plot_original <- T                   # plot original spectra: yes = T | no = F
 Legend_pos <- "topright"             # position of legend in plots "topleft" or "topright"
@@ -37,7 +37,7 @@ x_PC <- 1                            # PC on x-axis of score plots
 y_PC <- 2                            # PC on y-axis of score plots
 
 perform_LDA <- T                     # perform linear discriminant analysis
-repetitions <- 20                   # Number of repetitions of the cross-validation
+repetitions <- 100                   # Number of repetitions of the cross-validation
 segments.out <- 3                    # Number of segments in the outer loop
 segments.in <- 5                     # Number of segments in the inner loop
 max.PCs <- 25                        # Max number of PCs to use for LDA
@@ -3179,7 +3179,7 @@ for (Stats in pretreatments) {
   
   abline(h = 0, v = 0)
   
-  legend("bottomleft", 
+  legend("bottomright", 
          legend = legend, 
          pch = 20, 
          col = unique(Data$Groups[!is.na(Data$Groups)]), 
@@ -3852,28 +3852,46 @@ if (perform_LDA == T) {
     ################################################
     
     # Confusion matrix with histograms
-    cm.type <- factor(rep(c("TN", "FP", "FN", "TP"), times=repetitions), levels=c("TN", "FP", "FN", "TP"))
     
-    cm.df <- data.frame(c(cm.results), cm.type)
-    colnames(cm.df) <- c("Count", "Quadrant")
+    pos.class.name <- legend[groups == pos.class]
+    neg.class.name <- legend[groups != pos.class]
+    
+    cm.class <- factor(rep(c(neg.class.name, neg.class.name, pos.class.name, pos.class.name),
+                           times=repetitions),
+                       levels=c(neg.class.name, pos.class.name))
+    
+    cm.pred <- factor(rep(c(neg.class.name, pos.class.name, neg.class.name, pos.class.name),
+                          times=repetitions),
+                      levels=c(neg.class.name, pos.class.name))
+    
+    cm.quadrant <- factor(rep(c("TN", "FP", "FN", "TP"), times=repetitions), levels=c("TN", "FP", "FN", "TP"))
+    
+    cm.df <- data.frame(c(cm.results), cm.class, cm.pred, cm.quadrant)
+    colnames(cm.df) <- c("Count", "Group", "Prediction", "Quadrant")
     
     
     x_max <- length(groups.lda) / length(levels(groups.lda))
+    y_max <- max(as.data.frame(table(cm.df$Count))$Freq) * 1.2
     
     cm.annotations <- as.data.frame(aggregate(cm.df$Count, by=list(cm.df$Quadrant), median))
-    colnames(cm.annotations) <- c("Quadrant", "Median")
+    cm.annotations <- as.data.frame(aggregate(cm.df$Count, by=list(cm.df$Group, cm.df$Prediction), median))
+    colnames(cm.annotations) <- c("Group", "Prediction", "Median")
     
     cm.annotations$x <- x_max/2
-    cm.annotations$y <- repetitions/2
+    cm.annotations$y <- y_max/2
     
-    cm.labs <- c("True Negative", "False Positive", "False Negative", "True Positive")
-    names(cm.labs) <- c("TN", "FP", "FN", "TP")
+    cm.labs <- c(neg.class.name, pos.class.name)
     
+    cm.xlabs <- paste("Prediction:", cm.labs, sep=" ")
+    names(cm.xlabs) <- c(neg.class.name, pos.class.name)
+    
+    cm.ylabs <- paste("Group:", cm.labs, sep=" ")
+    names(cm.ylabs) <- c(neg.class.name, pos.class.name)
     
     p <- ggplot(data=cm.df, 
                 aes(x=Count)) +
       
-         coord_cartesian(xlim=c(0,x_max), ylim=c(0,repetitions)) +
+         coord_cartesian(xlim=c(0,x_max), ylim=c(0,y_max)) +
       
          geom_bar(width=1) + 
       
@@ -3886,13 +3904,18 @@ if (perform_LDA == T) {
                    color="red",
                    size=5) +
       
-         facet_wrap(vars(Quadrant),
-                    labeller=labeller(Quadrant=cm.labs)) +
+         facet_grid(rows=vars(Group), cols=vars(Prediction), switch="y",
+                    labeller=labeller(.rows = cm.ylabs, .cols = cm.xlabs)) +
       
-         labs(x="Count", 
-              y="") +
+         scale_y_continuous(position="right") +
+    
+         labs(x="No. of elements", 
+              y="Frequency (%)") +
       
-         theme_bw() + theme(legend.position = "none")
+         theme_bw() + 
+         theme(legend.position = "none",
+               strip.text.x = element_text(size=12, face="bold"),
+               strip.text.y = element_text(size=12, face="bold"))
     
     print(p)
     
@@ -4013,7 +4036,7 @@ if (perform_LDA == T) {
      
      p <- ggplot(data=LDA.loadings.df, aes(x=Wavenumber, y=Median)) + 
           geom_ribbon(aes(ymin=FirstQuart, ymax=ThirdQuart), col="lightgray", fill="lightgray") +
-          geom_line(size=0.7) +
+          geom_line(size=0.5) +
           geom_hline(yintercept=0, linetype="dashed") + theme_bw() +
           stat_peaks(geom="text", span=41, color="black", x.label.fmt="%.0f", ignore_threshold=0.7, angle=90, vjust=0.5, hjust=-0.75) + 
           stat_valleys(geom="text", span=41, color="black", x.label.fmt="%.0f", ignore_threshold=0.35, angle=90, vjust=0.5, hjust=1.75) +
@@ -4047,11 +4070,11 @@ if (perform_LDA == T) {
      spectra_median.df <- reshape(spectra_median.df, varying=2:ncol(spectra_median.df), sep="_", direction = "long", timevar="Group")
      
      p <- ggplot(spectra_median.df, aes(x=Wavenumber, y=Median)) + 
-          geom_line(aes(col=Group), size=0.7) +
+          geom_line(aes(col=Group), size=0.5) +
           geom_ribbon(aes(ymin=Q1, ymax=Q3, fill=Group), alpha=0.2, show.legend=FALSE) +
-          stat_peaks(data=spectra.combined, aes(x=WN, y=INT), geom="text", span=33, 
-                     color="black", x.label.fmt="%.0f", ignore_threshold=0.02, angle=90, 
-                     vjust=0.5, hjust=-0.75) +
+          # stat_peaks(data=spectra.combined, aes(x=WN, y=INT), geom="text", span=33, 
+          #            color="black", x.label.fmt="%.0f", ignore_threshold=0.02, angle=90, 
+          #            vjust=0.5, hjust=-0.75) +
           scale_color_discrete(label=legend) +
           scale_fill_discrete(label=legend) +
           scale_x_continuous(expand=expansion(0)) + 
@@ -4083,7 +4106,7 @@ if (perform_LDA == T) {
          subset(spectra_median.df, Group!=pos.class, select=Q1))
        
        p <- ggplot(diff.spectrum.df, aes(x=Wavenumber, y=Median)) + 
-            geom_line(size=0.7) + 
+            geom_line(size=0.5) + 
             geom_ribbon(aes(ymin=Q1, ymax=Q3), alpha=0.25) +
             geom_hline(yintercept=0, linetype="dashed") +
             stat_peaks(geom="text", span=31, color="black", 
@@ -4110,27 +4133,27 @@ end_time = format(Sys.time(), '%X') # get end time of analysis
 # print time difference between start time and end time
 print(paste("Time used for analysis:", round(as.difftime(end_time, units = "mins")-as.difftime(start_time, units = "mins"),digits=2),"minutes"))
 
-y1lim <- c(0,0.2)
-y2lim <- c(-1.5,1)
-b <- diff(y1lim)/diff(y2lim)
-a <- y1lim[1] - b*y2lim[1]
-
-
-p <- ggplot(spectra_median.df, aes(x=Wavenumber, y=Median)) + 
-  geom_line(aes(col=Group), size=0.7) +
-  geom_line(data=LDA.loadings.df, mapping=aes(x=Wavenumber, y=a+Median*b), color="gray") + 
-  geom_hline(yintercept=a, linetype="dashed") +
-  geom_ribbon(aes(ymin=Q1, ymax=Q3, fill=Group), alpha=0.2, show.legend=FALSE) +
-  stat_peaks(data=spectra.combined, aes(x=WN, y=INT), geom="text", span=35, 
-             color="black", x.label.fmt="%.0f", ignore_threshold=0.05, angle=90, 
-             vjust=0.5, hjust=-0.75) +
-  scale_color_discrete(label=legend) +
-  scale_fill_discrete(label=legend) +
-  scale_x_continuous(expand=expansion(0)) + 
-  scale_y_continuous(expand=expansion(c(0,0.25)), name="Intensity",
-                     sec.axis=sec_axis(~ (. - a)/b, name="Loadings")) +
-  theme_bw() + theme(legend.position = "bottom") + 
-  labs(x=bquote("Raman shift" ~(cm^-1)))
-
-print(p)
-
+# y1lim <- c(0,0.2)
+# y2lim <- c(-1.5,1)
+# b <- diff(y1lim)/diff(y2lim)
+# a <- y1lim[1] - b*y2lim[1]
+# 
+# 
+# p <- ggplot(spectra_median.df, aes(x=Wavenumber, y=Median)) + 
+#   geom_line(aes(col=Group), size=0.7) +
+#   geom_line(data=LDA.loadings.df, mapping=aes(x=Wavenumber, y=a+Median*b), color="gray") + 
+#   geom_hline(yintercept=a, linetype="dashed") +
+#   geom_ribbon(aes(ymin=Q1, ymax=Q3, fill=Group), alpha=0.2, show.legend=FALSE) +
+#   stat_peaks(data=spectra.combined, aes(x=WN, y=INT), geom="text", span=35, 
+#              color="black", x.label.fmt="%.0f", ignore_threshold=0.05, angle=90, 
+#              vjust=0.5, hjust=-0.75) +
+#   scale_color_discrete(label=legend) +
+#   scale_fill_discrete(label=legend) +
+#   scale_x_continuous(expand=expansion(0)) + 
+#   scale_y_continuous(expand=expansion(c(0,0.25)), name="Intensity",
+#                      sec.axis=sec_axis(~ (. - a)/b, name="Loadings")) +
+#   theme_bw() + theme(legend.position = "bottom") + 
+#   labs(x=bquote("Raman shift" ~(cm^-1)))
+# 
+# print(p)
+# 
